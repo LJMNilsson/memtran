@@ -1,0 +1,7 @@
+type type_a = my_struct{foo ' int    bar ' int} / johnny(int, bool, nil)
+
+fn test(a ' int) ' int :
+    return 3
+;
+
+type johnny(a, b, c) = arr arr a / arr arr b / arr arr c

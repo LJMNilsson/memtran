@@ -1,0 +1,11 @@
+
+
+pandoc --number-sections --standalone --toc < reference_manual.md > reference_manual.html
+
+
+
+
+
+
+$ find -name "*.java" > sources.txt
+$ javac @sources.txt

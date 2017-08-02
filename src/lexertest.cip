@@ -1,0 +1,304 @@
+   
+
+    // Direct initialization -- nothing can be NULL
+    mu array1 : [] F64 = #[1.2, 3.4, 5.6, 7.8] 
+
+    // Bypassing the initialization requirement
+    array2 : [] Int = #[; 100] 
+                  
+    // Actual initialization                                                
+    for it over array2 {                       
+        it = toInt(random() * 100.0)               
+    }                                               
+            
+    // "Assign-by-whole-value"                                         
+    array3 : [] F64 = array1                   
+
+
+    
+
+
+    type Monster = 'Monster'{  // "Un-abstracted" type declaration
+        id : UInt                                  
+        healthPoints : F32; // Semicolons are optional...        
+    }                                               
+                                                  
+    mu monsterArray : [] Monster = #[
+        #'Monster'{id = 1; healthPoints = 100.0}, // "Struct expressions" 
+        #'Monster'{id = 0  healthPoints = 50.0},
+        #'Monster'{id = 2  healthPoints = 80.0}
+    ]
+
+    monsterArray[1].healthPoints = monsterArray[2].healthPoints - 5.0        
+
+    // "Assign-by-whole-value" again  
+    mu anotherMonsterArray : [] Monster = monsterArray     
+
+    anotherMonsterArray[2].healthPoints += 2.0     
+
+    print(anotherMonsterArray[2].healthPoints) // will print "82.0000"     
+    print(monsterArray[2].healthPoints)        // will print "80.0000"
+    
+
+
+
+    
+
+    type MyOrtype = Monster / F64 / [] Int / Nil   
+
+    // Automatic conversion to the ortype:
+    mu myOrtypeValue : MyOrtype = #/3.14\ 
+                                                    
+    contenttype myOrtypeValue case Monster {
+        // Treating the variable as if casted to the type case:          
+        myOrtypeValue.healthPoints += 1.0           
+        print(myOrtypeValue.healthPoints)           
+        printLn()                                
+    } case F64 {
+        printUTF8("It's an F64!\n")
+    } default {
+        printUTF8("Default case!\n")
+    }
+
+
+
+
+
+
+    /* -------------------------------------------- */
+
+
+
+
+
+
+
+
+
+
+            
+    fn createNewMonsterFromOld(mu m : Monster => Monster) {         
+        m.healthPoints -= 50.0                                      
+        return m                                                   
+    }
+
+    newMonster : Monster = 
+        createNewMonsterFromOld(monsterArray[0])
+
+    print(newMonster.healthPoints)      // will print "50.0000"
+    
+
+    print(monsterArray[0].healthPoints) // will print "100.000"
+   
+
+
+
+
+
+
+    /* -------------------------------------------- */
+
+    // Like an "abstract base class":
+    type Animal = Horse / Lion / Pig       
+   
+    /* "default" case EXPANDS; no
+    need to "maintain typeswitches" */                                        
+    fn talk(a : Animal) {
+        contenttype a default {             
+            talk(a)                        
+        }                                  
+    }
+                                      
+    type Horse = 'Horse'{}
+
+    fn talk(h : Horse) {                   
+        printUTF8("Neigh!\n")              
+    }
+
+    type Lion = 'Lion'{}
+
+    fn talk(l : Lion) {                    
+        printUTF8("Roar!\n")
+    }
+
+    type Pig = 'Pig'{numberOfEes : Int}
+
+    fn talk(p : Pig) {
+        for i : Int = 0 to p.numberOfEes - 1 {  
+            printUTF8("Ee ")
+        }
+        printLn()
+    }
+
+    animals : [] Animal = #[; 10]
+    for it over animals {
+        rand : F64 = random()
+        switch rand < 0.33 {
+            it = #'Horse'{}
+        } else if rand < 0.67 {
+            it = #'Lion'{}
+        } else {
+            it = #'Pig'{
+                numberOfEes = 
+                    toInt(random() * 10.0)
+            }
+        }
+    } 
+    for it in animals {                             
+        talk(it)
+    }
+
+
+
+
+
+ // A final note: if you are writing a library and want your types
+ // to be extensible by the library user, and at the same
+ // time allow runtime polymorphism, in a case when
+ // the user does not have access to the source code of that
+ // library, or does not want to
+ // manipulate it, for various reasons, you can use a combination 
+ // of ortypes together with the "dollarsign functionality"
+ // of the function template system, as demonstrated in the example 
+ // "user_extensible_types.cip" in the examples folder of the Cimmpl
+ // compiler source tree.
+
+    /* -------------------------------------------- */
+
+
+
+
+
+
+    fn modifyMonster(ref m : Monster) {             
+        m.healthPoints -= 30.0                      
+    }                                              
+
+    modifyMonster(ref monsterArray[1])              
+
+                                                    
+
+
+
+
+
+
+    
+    /* -------------------------------------------- */
+
+
+
+
+
+    fn(T) dynArrayInsertionSort(
+        ref array : [] T,              
+        greaterThan : Fn(T, T => Bool) // First-class function
+    ) {                       
+        for i : Int = 1 to len(array) - 1 {                 
+            mu j : Int = i
+            loop {                                            
+                if !((j > 0) && (array[j - 1] `greaterThan` array[j])) { // "infix syntax"
+                    break                                              
+                }
+                swap(ref array[j], ref array[j - 1])
+                j -= 1
+            }
+        }
+    }
+
+    inline fn(T) swap(ref a : T, ref b : T) { // Pass-by-reference        
+        temp: T = a                                  
+        a = b
+        b = temp                                            
+    }
+
+    fn myGreaterThan(a : Monster, b : Monster => Bool) { return a.id > b.id }
+
+    dynArrayInsertionSort(ref monsterArray, myGreaterThan)
+
+
+
+
+
+
+
+    /* -------------------------------------------- */
+
+                                // Parametrized types go hand in hand with function templates.
+                                                           // This one is perhaps not very useful, but illustrates the principle.
+
+    /* -------------------------------------------- */
+
+    fn(T) subarray(                                        // This function template demonstrates some further features
+            a : [] T,                                      // of Cimmpl's for loop construct
+            start : UInt, 
+            endExclusive : UInt
+             => [] T
+    ) {
+
+        result : [mu] T = #[; endExclusive - start]
+        
+        for i : UInt = start to endExclusive - 1,          // doing most of the work in the head of the for loop rather than in the body,
+            it : T in a,                                  // like this, will, in this language, often be better from a performance point of view.
+            jt over result offsetvalue -start {
+
+            jt = it
+
+        }
+
+        return result
+    }
+
+    arrayA : [] Int = #[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+    arrayB : [] Int = subarray(arrayA, 3, 8)                 // 'arrayB' will be #[3, 4, 5, 6, 7]    
+
+
+    /* -------------------------------------------- */
+    
+    monsterRef : MuReference(Monster) 
+            = monsterArray[1] <~                       // This is an immutable variable holding a value of (mutable) reference type.
+                                                       // Its value can refer to any (mutable) slot or subslot of its constituent type.
+                                                       // Here we assign it a reference to the subslot monsterArray[1]
+
+    if (refIsValid(monsterRef)) {                      // Testing if the reference still is valid, 
+        monsterRef ~> .healthPoints = 40.0             // then setting the referred subslot's 'healthPoints' field to a new value. 
+    }
+
+    /* -------------------------------------------- */
+
+    type Token = UInt                         // An abstracted type. No operations can be performed on this type, to begin with.
+                                                        // (Except the compile time operation "as". Please read on.) 
+    internal mu tokenCounter : Int = 0                   
+
+    fn createToken(=> Token) {                         // But you can define operations on it, using "aliasing" (with "as")
+        result : Token = tokenCounter as Token         // for converting back and forth to and from the type that constitutes
+        tokenCounter += 1                              // its definition. In this example, we implement an enum-like functionality. 
+        return result    
+    }
+
+    fn equals(t1 : Token, t2 : Token => Bool) {
+        return (t1 as UInt) == (t2 as UInt)
+    }
+
+    /* --------------------------------------------- */
+
+
+
+
+
+
+
+
+    // Separate compilation module system
+    import "utf8.scim"
+    prefiximport "array.scim"
+
+    // Parametrized types
+    type MyDynArray(T) = [] T
+
+    // Multiple return values 
+    a : I8, success : Bool = toI8(31234789)
+             
+    // Named arguments
+    add(ref array = monsterArray, element = monsterArray[1])

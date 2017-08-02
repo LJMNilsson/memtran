@@ -1,0 +1,1434 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta name="generator" content="pandoc" />
+  <title>Memtran Reference Manual</title>
+  <style type="text/css">code{white-space: pre;}</style>
+</head>
+<body>
+<div id="header">
+<h1 class="title">Memtran Reference Manual</h1>
+</div>
+<div id="TOC">
+<ul>
+<li><a href="#about-memtran"><span class="toc-section-number">1</span> About Memtran</a></li>
+<li><a href="#the-compiler"><span class="toc-section-number">2</span> The compiler</a></li>
+<li><a href="#about-this-document"><span class="toc-section-number">3</span> About this document</a></li>
+<li><a href="#lexical-structure"><span class="toc-section-number">4</span> Lexical structure</a><ul>
+<li><a href="#encoding"><span class="toc-section-number">4.1</span> Encoding</a></li>
+<li><a href="#case-sensitivity"><span class="toc-section-number">4.2</span> Case-sensitivity</a></li>
+<li><a href="#free-form-layout-syntax"><span class="toc-section-number">4.3</span> &quot;Free-form layout&quot; syntax</a></li>
+<li><a href="#reserved-characters"><span class="toc-section-number">4.4</span> Reserved characters</a><ul>
+<li><a href="#distinct-tokens-that-are-reserved-characters-or-combinations-of-reserved-characters"><span class="toc-section-number">4.4.1</span> Distinct tokens that are reserved characters, or combinations of reserved characters</a></li>
+</ul></li>
+<li><a href="#keywords-reserved-words"><span class="toc-section-number">4.5</span> Keywords (reserved words)</a></li>
+<li><a href="#identifiers"><span class="toc-section-number">4.6</span> Identifiers</a></li>
+<li><a href="#comments"><span class="toc-section-number">4.7</span> Comments</a></li>
+</ul></li>
+<li><a href="#preliminary-definitions"><span class="toc-section-number">5</span> Preliminary definitions</a><ul>
+<li><a href="#bnf-notation"><span class="toc-section-number">5.1</span> BNF notation</a></li>
+<li><a href="#slots-and-subslots"><span class="toc-section-number">5.2</span> Slots and subslots</a></li>
+<li><a href="#scopes-and-subscopes"><span class="toc-section-number">5.3</span> Scopes and subscopes</a></li>
+<li><a href="#identifier-namespaces"><span class="toc-section-number">5.4</span> Identifier namespaces</a></li>
+<li><a href="#memory-safety-exceptions"><span class="toc-section-number">5.5</span> Memory safety exceptions</a></li>
+</ul></li>
+<li><a href="#type-system"><span class="toc-section-number">6</span> Type system</a><ul>
+<li><a href="#nil"><span class="toc-section-number">6.1</span> <code>nil</code></a></li>
+<li><a href="#bool"><span class="toc-section-number">6.2</span> <code>bool</code></a></li>
+<li><a href="#i8-i16-i32-i64-and-int"><span class="toc-section-number">6.3</span> <code>i8</code>, <code>i16</code>, <code>i32</code>, <code>i64</code> and <code>int</code></a></li>
+<li><a href="#u8-u16-u32-u64-and-uint"><span class="toc-section-number">6.4</span> <code>u8</code>, <code>u16</code>, <code>u32</code>, <code>u64</code> and <code>uint</code></a></li>
+<li><a href="#f32-and-f64"><span class="toc-section-number">6.5</span> <code>f32</code> and <code>f64</code></a></li>
+<li><a href="#dynamic-size-array-types"><span class="toc-section-number">6.6</span> Dynamic size array types</a></li>
+<li><a href="#struct-types"><span class="toc-section-number">6.7</span> Struct types</a></li>
+<li><a href="#variant-box-types"><span class="toc-section-number">6.8</span> Variant-box types</a></li>
+<li><a href="#function-types"><span class="toc-section-number">6.9</span> Function types</a></li>
+<li><a href="#parametrized-types"><span class="toc-section-number">6.10</span> Parametrized types</a></li>
+<li><a href="#memory-layout-example"><span class="toc-section-number">6.11</span> Memory layout example</a></li>
+</ul></li>
+<li><a href="#expressions"><span class="toc-section-number">7</span> Expressions</a><ul>
+<li><a href="#nil-1"><span class="toc-section-number">7.1</span> <code>nil{}</code></a></li>
+<li><a href="#true-and-false"><span class="toc-section-number">7.2</span> <code>true</code> and <code>false</code></a></li>
+<li><a href="#number-literals"><span class="toc-section-number">7.3</span> Number literals</a></li>
+<li><a href="#string-literals"><span class="toc-section-number">7.4</span> String literals</a></li>
+<li><a href="#identifier-expressions"><span class="toc-section-number">7.5</span> Identifier expressions</a></li>
+<li><a href="#type-clarified-expressions"><span class="toc-section-number">7.6</span> Type clarified expressions</a></li>
+<li><a href="#array-indexing-expressions"><span class="toc-section-number">7.7</span> Array indexing expressions</a></li>
+<li><a href="#struct-indexing-expressions"><span class="toc-section-number">7.8</span> Struct indexing expressions</a></li>
+<li><a href="#array-expressions"><span class="toc-section-number">7.9</span> Array expressions</a><ul>
+<li><a href="#array-expressions-of-individual-values"><span class="toc-section-number">7.9.1</span> Array expressions of individual values</a></li>
+<li><a href="#array-expressions-of-repeated-initialization"><span class="toc-section-number">7.9.2</span> Array expressions of repeated initialization</a></li>
+<li><a href="#array-expressions-with-no-initialization"><span class="toc-section-number">7.9.3</span> Array expressions with no initialization</a></li>
+<li><a href="#solution-for-v0.3"><span class="toc-section-number">7.9.4</span> Solution for v0.3:</a></li>
+</ul></li>
+<li><a href="#struct-expressions"><span class="toc-section-number">7.10</span> Struct expressions</a></li>
+<li><a href="#function-call-expressions"><span class="toc-section-number">7.11</span> Function call expressions</a><ul>
+<li><a href="#ref-arguments"><span class="toc-section-number">7.11.1</span> Ref arguments</a></li>
+</ul></li>
+<li><a href="#non-short-circuited-prefix-and-infix-operator-expressions"><span class="toc-section-number">7.12</span> Non-short-circuited prefix and infix operator expressions</a></li>
+<li><a href="#variant-box-downcast-expressions"><span class="toc-section-number">7.13</span> variant-box downcast expressions</a></li>
+<li><a href="#expressions-and-expressions"><span class="toc-section-number">7.14</span> <code>&amp;&amp;</code> expressions and <code>||</code> expressions</a></li>
+<li><a href="#end"><span class="toc-section-number">7.15</span> <code>end</code></a></li>
+<li><a href="#if-expressions-switch-expressions-and-contenttype-expressions"><span class="toc-section-number">7.16</span> IF expressions, SWITCH expressions, and CONTENTTYPE expressions</a></li>
+</ul></li>
+<li><a href="#lvalues"><span class="toc-section-number">8</span> Lvalues</a></li>
+<li><a href="#statements-and-top-level-structure"><span class="toc-section-number">9</span> Statements and top-level structure</a><ul>
+<li><a href="#blocks"><span class="toc-section-number">9.1</span> Blocks</a></li>
+<li><a href="#type-declaration-statements"><span class="toc-section-number">9.2</span> Type declaration statements</a></li>
+<li><a href="#assignment-statements-and-variable-declarations"><span class="toc-section-number">9.3</span> Assignment statements and variable declarations</a><ul>
+<li><a href="#variable-declarations"><span class="toc-section-number">9.3.1</span> Variable declarations</a></li>
+<li><a href="#lifetime-of-slots"><span class="toc-section-number">9.3.2</span> Lifetime of slots</a></li>
+<li><a href="#compound-assignment-statements"><span class="toc-section-number">9.3.3</span> Compound assignment statements</a></li>
+</ul></li>
+<li><a href="#function-call-statements"><span class="toc-section-number">9.4</span> Function call statements</a></li>
+<li><a href="#function-declaration-statements-and-return-statements"><span class="toc-section-number">9.5</span> Function declaration statements and return statements</a><ul>
+<li><a href="#ref-parameters"><span class="toc-section-number">9.5.1</span> Ref parameters</a></li>
+<li><a href="#return-statements"><span class="toc-section-number">9.5.2</span> Return statements</a></li>
+</ul></li>
+<li><a href="#contenttype-statements"><span class="toc-section-number">9.6</span> Contenttype statements</a></li>
+<li><a href="#if-statements"><span class="toc-section-number">9.7</span> If statements</a></li>
+<li><a href="#loop-statements"><span class="toc-section-number">9.8</span> Loop statements</a></li>
+<li><a href="#for-statements"><span class="toc-section-number">9.9</span> For statements</a><ul>
+<li><a href="#using-for-loops-with-container-objects-in-general-i.e.-abstracted-types-that-the-user-or-standard-library-will-declare-note-for-v0.2"><span class="toc-section-number">9.9.1</span> Using for loops with container objects in general (i.e. abstracted types that the user or standard library will declare) (NOTE: for v0.2)</a></li>
+</ul></li>
+<li><a href="#break-statements"><span class="toc-section-number">9.10</span> Break statements</a></li>
+<li><a href="#continue-statements"><span class="toc-section-number">9.11</span> Continue statements</a></li>
+</ul></li>
+<li><a href="#operations-that-set-the-rlock-flag-on-copy-on-write-values"><span class="toc-section-number">10</span> Operations that set the <em>rlock</em> flag on copy-on-write values</a></li>
+<li><a href="#precedence-rules"><span class="toc-section-number">11</span> Precedence rules</a><ul>
+<li><a href="#precedence-order-for-types"><span class="toc-section-number">11.1</span> Precedence order for types</a></li>
+<li><a href="#precedence-order-for-expressions"><span class="toc-section-number">11.2</span> Precedence order for expressions</a></li>
+</ul></li>
+<li><a href="#overloaded-functions-and-type-inference"><span class="toc-section-number">12</span> Overloaded functions and type inference</a></li>
+<li><a href="#generics"><span class="toc-section-number">13</span> Generics</a><ul>
+<li><a href="#parametrized-types-1"><span class="toc-section-number">13.1</span> Parametrized types</a></li>
+<li><a href="#function-templates"><span class="toc-section-number">13.2</span> Function templates</a><ul>
+<li><a href="#type-name-capture"><span class="toc-section-number">13.2.1</span> Type name capture</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#the-construand-keyword"><span class="toc-section-number">14</span> The <code>construand</code> keyword</a></li>
+<li><a href="#implementation-of-memtrans-assign-by-value-and-pass-by-valuepass-by-reference-semantics----tables"><span class="toc-section-number">15</span> Implementation of Memtran's assign-by-value and pass-by-value/pass-by-reference semantics -- tables</a></li>
+<li><a href="#module-system"><span class="toc-section-number">16</span> Module system</a></li>
+<li><a href="#local-functions"><span class="toc-section-number">17</span> Local functions</a></li>
+<li><a href="#evaluation-order"><span class="toc-section-number">18</span> Evaluation order</a></li>
+<li><a href="#future-extensions"><span class="toc-section-number">19</span> Future extensions</a><ul>
+<li><a href="#c-interoperability"><span class="toc-section-number">19.1</span> C interoperability</a></li>
+<li><a href="#concurrency"><span class="toc-section-number">19.2</span> Concurrency</a></li>
+<li><a href="#switch-statement"><span class="toc-section-number">19.3</span> Switch statement</a></li>
+</ul></li>
+<li><a href="#built-in-functions"><span class="toc-section-number">20</span> Built-in functions</a><ul>
+<li><a href="#array-functions"><span class="toc-section-number">20.1</span> Array functions</a></li>
+<li><a href="#conversion"><span class="toc-section-number">20.2</span> Conversion</a></li>
+<li><a href="#language-error-handling"><span class="toc-section-number">20.3</span> Language error handling</a></li>
+<li><a href="#memory-information"><span class="toc-section-number">20.4</span> Memory information</a></li>
+<li><a href="#printing-to-standard-output"><span class="toc-section-number">20.5</span> Printing to standard output</a></li>
+<li><a href="#other"><span class="toc-section-number">20.6</span> Other</a></li>
+</ul></li>
+<li><a href="#standard-library"><span class="toc-section-number">21</span> Standard library</a><ul>
+<li><a href="#array.cim"><span class="toc-section-number">21.1</span> array.cim</a></li>
+<li><a href="#ascii.cim"><span class="toc-section-number">21.2</span> ascii.cim</a></li>
+<li><a href="#random.cim"><span class="toc-section-number">21.3</span> random.cim</a></li>
+<li><a href="#utf8.cim"><span class="toc-section-number">21.4</span> utf8.cim</a></li>
+<li><a href="#util.cim"><span class="toc-section-number">21.5</span> util.cim</a></li>
+</ul></li>
+</ul>
+</div>
+<p>Copyright (C) 2017 Martin Nilsson.</p>
+<p>This document is provided under the Creative Commons Attribution-ShareAlike 4.0 International license (see https://creativecommons.org/licenses/by-sa/4.0/legalcode ).</p>
+<p>Note that this document currently optimistically describes future functionality that is not yet implemented at all, as if it already existed. Scepsis is natural and healthy when reading such a document -- but be aware that I am absolutely aware that things might need to be changed in order to work.</p>
+<h1 id="about-memtran"><a href="#about-memtran"><span class="header-section-number">1</span> About Memtran</a></h1>
+<p>Memtran is a memory managed programming language which is compiled, imperative, strongly typed, memory safe, and open source.</p>
+<p>Due to the special characteristics of how the Memtran language works (i.e. its semantics), the compiler will always know where in a program that memory can or should be freed. It can therefore insert necessary, automatically generated destruction operations at the right places in the executable file that it generates, without any need for a tracing garbage collector.</p>
+<p>Further, Memtran has the following features: runtime polymorphism (through its &quot;variant-box&quot; types), circumventable data abstraction, function overloading, first-class functions, multiple return values, generics, and local functions (but not &quot;true closures&quot; as is meant by the term in the Lisp family of languages). On the other hand, Memtran does <em>not</em> provide OOP-style inheritance of code or data.</p>
+<p>In contrast to most other languages, <em>assignment</em> in Memtran follows the principle &quot;assign-by-a-conceptually-unique-instance-of-the-whole-datastructure&quot;. When it comes to <em>argument passing</em>, on the other hand, you can choose between (1) &quot;pass-by-a-conceptually-unique-instance-of-the-whole-datastructure&quot;, and (2) pass-by-reference.</p>
+<p>An important inspiration for Memtran is the language Euphoria, which can be both interpreted and compiled. In fact, one can say that Euphoria and Memtran have similar semantics. But the details of their implementation are very different, and also, Memtran has a comparatively more static type system. The ambition is that Memtran will both be a bit faster than Euphoria (on modern hardware), and provide some different or additional features.</p>
+<p>The Memtran compiler uses (will use) LLVM as its back-end; its front-end is currently written in Python. Memtran is provided under the GPL v3.0 license.</p>
+<p>As this is free software, and a very early version, even, it can't be guaranteed that any of Memtran's features work as they are supposed to do.</p>
+<h1 id="the-compiler"><a href="#the-compiler"><span class="header-section-number">2</span> The compiler</a></h1>
+<p>The Memtran compiler (not very well-tested at all) is written in Python, using the LLVM framework for its back-end.</p>
+<h1 id="about-this-document"><a href="#about-this-document"><span class="header-section-number">3</span> About this document</a></h1>
+<p>At this early stage in Memtran development, most anything in this manual may be subject to change.</p>
+<p>Also, this document does not constitute a formal specification of Memtran (no such specification exists at the moment). In some cases implementation details are described that would probably not be part of a formal specification.</p>
+<h1 id="lexical-structure"><a href="#lexical-structure"><span class="header-section-number">4</span> Lexical structure</a></h1>
+<h2 id="encoding"><a href="#encoding"><span class="header-section-number">4.1</span> Encoding</a></h2>
+<p>The compiler expects UTF8-encoded program files or module files.</p>
+<h2 id="case-sensitivity"><a href="#case-sensitivity"><span class="header-section-number">4.2</span> Case-sensitivity</a></h2>
+<p>Memtran programs are case-sensitive, i.e. '<code>A</code>' is considered a different character than '<code>a</code>', and so on.</p>
+<h2 id="free-form-layout-syntax"><a href="#free-form-layout-syntax"><span class="header-section-number">4.3</span> &quot;Free-form layout&quot; syntax</a></h2>
+<p>It bears noting that line-breaks are interpreted syntactically in the same way as whitespace (An exception is newlines within string literals, which is not allowed). So you can layout your Memtran statements as you wish -- i.e. you can have statements spanning over several lines, or alternatively have several statements on a single line. Also, special care has been taken during the design of Memtran's syntax so as to make semicolons after statements (or struct posts) completely optional.</p>
+<h2 id="reserved-characters"><a href="#reserved-characters"><span class="header-section-number">4.4</span> Reserved characters</a></h2>
+<pre><code>    [  ]  (  )  {  }  :  ,  ;  %  *  +  /  -  =  &lt;  &gt;  !  &amp;  .  &quot;  `  |  &#39;  \  ~  whitespace  newline  CR  EOF</code></pre>
+<h3 id="distinct-tokens-that-are-reserved-characters-or-combinations-of-reserved-characters"><a href="#distinct-tokens-that-are-reserved-characters-or-combinations-of-reserved-characters"><span class="header-section-number">4.4.1</span> Distinct tokens that are reserved characters, or combinations of reserved characters</a></h3>
+<pre><code>    [  ]  (  )  {  }  :  ,  ;  %  *  +  /  -  =  &lt;  &gt;  !  .  `  &#39;  \  ~  
+    ..  ...  ||  &amp;&amp;  /*  */  //  %=  *=  +=  /=  -=   &gt;=  &lt;=  ==  !=  &#39;&#39; </code></pre>
+<p>The lexer will parse these eagerly, i.e. prefer the longer ones. So '<code>...</code>' will always be parsed like one token, not as (for example) two tokens '<code>..</code>' and '<code>.</code>'. Apart from taking that into consideration (NOTE: and it is probably only legal syntax in one way anyway...), you don't need whitespace or newline inbetween these, or inbetween these and number literals, string literals, keywords or identifiers.</p>
+<h2 id="keywords-reserved-words"><a href="#keywords-reserved-words"><span class="header-section-number">4.5</span> Keywords (reserved words)</a></h2>
+<pre><code>    if  else  loop  break  continue  for  to  downto  over  in  indexfactor  indexoffset  return  mu  ref  inline
+    switch  contenttype  case  default  true  false  nil  fn  end  import  prefiximport  private  repeat  trash  uninitialized
+    vbox  type  label  construand  nil  bool  i8  i16  i32  i64  int  u8  u16  u32  u64  uint  f32  f64  arr 
+    IF  ELSE  SWITCH  CONTENTTYPE  CASE  DEFAULT</code></pre>
+<p>You need whitespace or newline inbetween these. You also need whitespace between keywords and number literals.</p>
+<h2 id="identifiers"><a href="#identifiers"><span class="header-section-number">4.6</span> Identifiers</a></h2>
+<p>Any <em>identifier</em> in Memtran is a sequence of one or more characters (alphanumeric or other symbols) pertaining to these rules:</p>
+<ul>
+<li>must not contain any reserved character</li>
+<li>must not start with a digit</li>
+<li>must not be a keyword</li>
+</ul>
+<p>Note that some identifiers are already &quot;occupied&quot; in the global scope as names of built-in functions. Overloading of these built-in function names is still possible though.</p>
+<p>Note that this has intentionally been designed so to allow any UTF-8 character that is not a reserved character, to be used in an identifier. This will go some way towards allowing programmers to think in their native language, which is something believed to be more for the good than not.</p>
+<h2 id="comments"><a href="#comments"><span class="header-section-number">4.7</span> Comments</a></h2>
+<p><em>Examples:</em></p>
+<pre><code>    // this is a comment to the end of the line
+
+    /*
+        This is a
+        multiline comment. /* hello*/ hello
+    */ </code></pre>
+<p>Comments are ignored by the lexer. Multiline comments can be nested.</p>
+<h1 id="preliminary-definitions"><a href="#preliminary-definitions"><span class="header-section-number">5</span> Preliminary definitions</a></h1>
+<h2 id="bnf-notation"><a href="#bnf-notation"><span class="header-section-number">5.1</span> BNF notation</a></h2>
+<p>In the BNF notation used in following chapters, reserved characters and combinations of reserved characters are surrounded by single quotes, while keywords are surrounded by double quotes. (NOTE: As an exception, the reserved character <code>'</code> will, for simplicity, be surrounded by double quotes.)</p>
+<p>The BNF given does not rule out all non-well-formed constructions, but simply gives those expressions that are accepted by the parser stage of the compilation. After the parser stage, the compiler runs separate &quot;semantic validation&quot; passes in order to rule out all non-well-formed statements. The additional descriptions given in this manual should hopefully make clear what is required in order to form well-formed syntactical constructions.</p>
+<p>For a BNF suitable for automatic parser generation, see the folder <code>extras/antlr4_parser</code>.</p>
+<h2 id="slots-and-subslots"><a href="#slots-and-subslots"><span class="header-section-number">5.2</span> Slots and subslots</a></h2>
+<p>This document will use the term <em>slot</em> to refer to a variable (mutable or immutable, global or local), or a function parameter (mutable or immutable) or loop variable (mutable or immutable). The term <em>subslot</em> will be used to refer to struct fields, array indices, xorbox type value casevalues, subfields, subindices or sub-casevalues of the value stored (conceptually speaking) in a slot.</p>
+<p>Due to Memtran's semantics, the terminology of slots is extra suitable -- it will not lead the user astray, semantically, to imagine the memory handled by a Memtran program as consisting simply of a number of slots, some of which will have the capacity to store values of arbitrary size. The actual implementation of these semantics is a wholly different matter though. Some of the following chapters will also give some idea of how the implementation handles memory behind the scenes, and knowledge of this will help the performance-aware programmer make good design decisions.</p>
+<h2 id="scopes-and-subscopes"><a href="#scopes-and-subscopes"><span class="header-section-number">5.3</span> Scopes and subscopes</a></h2>
+<p>All Memtran statements belong to a <em>scope</em>. Statements in the top-level of a program belong to the so called &quot;global&quot; scope, unless they are within a block, in which case they belong to the (&quot;local&quot;) subscope defined by that block. <em>Subscopes</em> of a scope are all blocks within that scope, or blocks within blocks in that scope, and so on. A subscope of a scope <em>x</em> is not the same scope as scope <em>x</em>. (NOTE: But according to the standard definition of scope, a subscope includes its containing scopes (but does not include other subscopes of such containing scopes). Update manual to reflect this standard definition.)</p>
+<h2 id="identifier-namespaces"><a href="#identifier-namespaces"><span class="header-section-number">5.4</span> Identifier namespaces</a></h2>
+<p>In a Memtran program. the general rule is that the same identifier may not be used for two things. Function names, slot names and type names live in the same namespace. There are, though, a number of exceptions to this, as follows:</p>
+<ol style="list-style-type: decimal">
+<li><em>Identical naming following block scope rules.</em></li>
+<li><em>Function overloading.</em> There may be several functions declared with the same name in the same scope, provided all those functions have different argument type lists. Likewise, function template names may be overloaded. For the rules of that, see the chapter on Generics.</li>
+<li><em>Names declared in another module.</em> From a module imported using the keyword <code>import</code>, whereas all type names are imported, only those slot names and function full names not declared <code>private</code> are imported into the namespace of the importing program or module file. And from a module imported using the keyword <code>prefiximport</code>, only type names are directly imported -- no other names declared in that module are imported into the namespace of the importing program or module file (i.e. they have to be accessed through the module name).</li>
+<li><em>Module names</em>. Speaking of that, module names belong to a separate namespace. All the names of the modules making up a program must be different though, not just the module names accessed per file. There is currently no way of resolving a module nameclash, other than renaming and recompiling all conflicting modules.</li>
+<li><em>Typeswitch statement aliasing.</em> Within a typeswitch statement case, an identifier expression at the beginning of the typeswitch statement will change meaning so as to mean that identifier expression as outside the typeswitch statement case, casted into one of its value's xorbox type cases.</li>
+<li><em>Struct field names</em>. Struct field names are used in struct types, struct indexing expressions and struct expressions. The field names are considered local to a struct, and won't conflict with any other names declared in a program.</li>
+<li><em>Struct tags</em>. (NOTE: Elaborate somewhat here!)</li>
+<li><em>Labels</em>. The labels used with loops and their continue statements and break statements, belong to a separate namespace. You can probably even use the same label several times in the same program, for different &quot;loop hierarchies&quot;, so to speak. (NOTE: elaborate on this when it is implemented...)</li>
+</ol>
+<h2 id="memory-safety-exceptions"><a href="#memory-safety-exceptions"><span class="header-section-number">5.5</span> Memory safety exceptions</a></h2>
+<p>The following two listed cases should supposedly be the only exceptions to Memtran's promise of memory safety. If you refrain from triggering/using the things listed, you should supposedly not have any segmentation faults or erroneous overwrites of memory:</p>
+<ol style="list-style-type: decimal">
+<li>Stack overflow (like, due to infinite or extremely deep recursion).</li>
+<li>Utilizing the <code>uninitialized</code> keyword</li>
+<li>Using the as yet non-existing C interface.</li>
+</ol>
+<p>But who knows!</p>
+<p>By the way, <em>reading</em> uninitialized memory is possible with <code>trash</code> or when using the <code>--recovermode</code> compiler flag. But these reads should at least be type safe. Also, of course, depending on how you see things, runtime language errors like &quot;array index out of bonds&quot; are in a way simply cosmetics upon another runtime error.</p>
+<h1 id="type-system"><a href="#type-system"><span class="header-section-number">6</span> Type system</a></h1>
+<pre><code>                                                    // IMPLEMENTATIONAL CATEGORY
+    type ::= 
+        | &quot;nil&quot;                                     // just a head (of size 0)
+        | &quot;bool&quot;                                    // just a head
+        | &quot;i8&quot;                                      // just a head               (NOT YET IMPLEMENTED)
+        | &quot;i16&quot;                                     // just a head               (NOT YET IMPLEMENTED)
+        | &quot;i32&quot;                                     // just a head               (NOT YET IMPLEMENTED)
+        | &quot;i64&quot;                                     // just a head               (NOT YET IMPLEMENTED)
+        | &quot;int&quot;                                     // just a head
+        | &quot;u8&quot;                                      // just a head
+        | &quot;u16&quot;                                     // just a head               (NOT YET IMPLEMENTED)
+        | &quot;u32&quot;                                     // just a head               (NOT YET IMPLEMENTED)
+        | &quot;u64&quot;                                     // just a head               (NOT YET IMPLEMENTED)
+        | &quot;uint&quot;                                    // just a head               (NOT YET IMPLEMENTED)
+        | &quot;f32&quot;                                     // just a head
+        | &quot;f64&quot;                                     // just a head
+        | dynamic_size_array_type                   // head + memory pointed to  (and whose memory pointed to, may have fields pointing to further memory)
+        | struct_type                               // just a head               (but whose fields may or may not point to further memory)
+        | variant-box_type                          // just a head               (but whose &quot;casevalue&quot; field may or may not point to further memory)
+        | function_type                             // just a head
+        | identifier                                // N/A                       (a type defined in a type declaration statement)
+        | parametrized_type                         // N/A                       (a type defined in a parametrized type declaration statement)
+        | parenthesized_type                        // N/A
+
+    parenthesized_type ::=
+        &#39;(&#39; type &#39;)&#39;</code></pre>
+<p>Types are specified in many kinds of Memtran statements, for example type declaration statements.</p>
+<p>As pertains to Memtran, given an associated type, certain series of regions of bits in computer memory can be unambigously viewed as representing certain mathematical value constructions. (NOTE: I don't know if I can put it better than that.)</p>
+<p>Syntactically, you may put parentheses around types in order to disambiguate them.</p>
+<p>All Memtran types have an <em>extension</em>, by which is meant the set of values it can be the type <em>of</em>. The value sets that make up the extensions for the possible Memtran types, are considered completely disjoint. So, for example, the value 3 of type I8 is a completely different 3 than the value 3 of type U8. In a program, you have to convert between them explicitly, using a conversion function. (But note in this regard that named types, as defined in a type declaration statement, are considered identical to their definition type).</p>
+<h2 id="nil"><a href="#nil"><span class="header-section-number">6.1</span> <code>nil</code></a></h2>
+<p>Type <code>nil</code> consists of the sole value <code>nil{}</code>. It can be considered as a predefined named struct type (see below).</p>
+<p>The type <code>nil</code> has the following implementational memory layout:</p>
+<pre><code>    head
+     _________________
+    |                |
+    | 0 bits of data |
+    |________________|</code></pre>
+<p>NOTE 1: The word &quot;head&quot; in this and following depictions is just what the memory box right below it <em>is</em>, so in no way does it imply that &quot;just a head&quot; data types like this one would have a head separate from the rest of its memory.</p>
+<h2 id="bool"><a href="#bool"><span class="header-section-number">6.2</span> <code>bool</code></a></h2>
+<p>Type <code>bool</code> has the two possible values <code>true</code> and <code>false</code>.</p>
+<p>The short-circuiting infix operators <code>&amp;&amp;</code> and <code>||</code> (see Chapter X), the prefix operator <code>!</code>, and the infix operators <code>==</code> and <code>!=</code>, operate on <code>bool</code> type values.</p>
+<p>The type 'bool' has the following implementational memory layout:</p>
+<pre><code>     head
+     ____________________________________
+    |              |                    |
+    | extra zeroes | the true/false bit |
+    |______________|____________________|</code></pre>
+<p>Built-in functions that operate on <code>bool</code> type values: <code>print</code> (See Chapter X).</p>
+<h2 id="i8-i16-i32-i64-and-int"><a href="#i8-i16-i32-i64-and-int"><span class="header-section-number">6.3</span> <code>i8</code>, <code>i16</code>, <code>i32</code>, <code>i64</code> and <code>int</code></a></h2>
+<p><code>i8</code>, <code>i16</code>, <code>i32</code>, <code>i64</code> are signed integer types of the specified number of bits. The memory size of <code>int</code> is equal to the word size of the targeted machine.</p>
+<p>The infix operators <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>==</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>%</code>, and the prefix operator <code>-</code>, operate on these types of values. The special assignment operators <code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, and <code>%=</code> are also usable on these types of values, and work just like in any C-syntax style language.</p>
+<p>The signed integer types have the following implementational memory layout:</p>
+<pre><code>    head
+     ________________
+    |               |
+    | numeric value |
+    |_______________|
+</code></pre>
+<p>Built-in functions that operate on these types of values: <code>print</code>, conversion functions, and others (See Chapter X).</p>
+<p>NOTE: i8, i16, i32, i64 are not yet implemented.</p>
+<h2 id="u8-u16-u32-u64-and-uint"><a href="#u8-u16-u32-u64-and-uint"><span class="header-section-number">6.4</span> <code>u8</code>, <code>u16</code>, <code>u32</code>, <code>u64</code> and <code>uint</code></a></h2>
+<p><code>u8</code>, <code>u16</code>, <code>u32</code>, <code>u64</code> are unsigned integer types of the specified number of bits. The memory size of <code>uint</code> is equal to the word size of the targeted machine.</p>
+<p>The infix operators <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>==</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>%</code>, and the prefix operator <code>-</code>, operate on these types of values. The special assignment operators <code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, and <code>%=</code> are also usable on these types of values, and work just like in any C-syntax style language.</p>
+<p>The unsigned integer types have the following implementational memory layout:</p>
+<pre><code>    head
+     ________________
+    |               |
+    | numeric value |
+    |_______________|
+</code></pre>
+<p>Built-in functions that operate on these types of values: <code>print</code>, conversion functions, and others (See Chapter X).</p>
+<p>NOTE: u16, u32, u64, uint are not yet implemented.</p>
+<h2 id="f32-and-f64"><a href="#f32-and-f64"><span class="header-section-number">6.5</span> <code>f32</code> and <code>f64</code></a></h2>
+<p><code>f32</code> and <code>f64</code> are single- and double-precision floating point number types.</p>
+<p>The infix operators <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>==</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>%</code>, and the prefix operator <code>-</code>, operate on these types of values. The special assignment operators <code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, and <code>%=</code> are also usable on these types of values, and work just like in any C-syntax style language.</p>
+<p>The floating point types have the following implementational memory layout:</p>
+<pre><code>    head
+     ________________
+    |               |
+    | numeric value |
+    |_______________|
+</code></pre>
+<p>Built-in functions that operate on these types of values: <code>print</code>, conversion functions, and others (See Chapter X).</p>
+<h2 id="dynamic-size-array-types"><a href="#dynamic-size-array-types"><span class="header-section-number">6.6</span> Dynamic size array types</a></h2>
+<pre><code>    dynamic_size_array_type ::=
+        &quot;arr&quot; type </code></pre>
+<p><em>Examples:</em></p>
+<pre><code>    arr arr bool  // a dynamic size array of dynamic size arrays of Bool
+    arr Int </code></pre>
+<p>The built-in function <code>len</code> gives the length (number of indices) of a dynamic size array type value.</p>
+<p>The implementational memory layout of a dynamic size array type value, is:</p>
+<pre><code>     head         
+   _____________________________________________
+   |     |        |             |       |      |
+   |  o  | length | totalMemory | gflag | gptr |
+   |__|__|________|_____________|_______|______|                    thing pointed to
+      |                                                             ________________________________________________________________________
+      |                                                            |                                               |                       |
+      \----------------------------------------------------------&gt; | array data (values of indices 0..length - 1)  | possibly extra memory |
+                                                                   |_______________________________________________|_______________________|</code></pre>
+<p>The purposes of <em>gflag</em> and <em>gptr</em> are described in Chapter X.</p>
+<p>The individual indice values of a dynamic size array can be accessed through array indexing (see Chapter X and Chapter X (the latter chapter describes assigning to array indices)), which starts from index 0 for the first value of the array.</p>
+<p>Built-in functions that operate on dynamic size array type values: <code>add_last, concat, len, remove_last</code> (See Chapter X).</p>
+<h2 id="struct-types"><a href="#struct-types"><span class="header-section-number">6.7</span> Struct types</a></h2>
+<pre><code>    struct_type ::=
+       identifier &#39;{&#39; (identifier &quot;&#39;&quot; type)* &#39;}&#39;</code></pre>
+<p><em>Example:</em></p>
+<pre><code>    player{
+        healthPoints &#39; int 
+        score &#39; int
+        id &#39; arr u8
+    }</code></pre>
+<p>A struct type has an associated &quot;tag&quot; specified by the leftmost identifier (i.e. &quot;player&quot; in the example above).</p>
+<p>Each field of the type is optionally syntactically terminated by a semicolon.</p>
+<p>The individual fields of a struct type value can be accessed through struct indexing. See Chapter X and Chapter X (the latter chapter describes assignment to fields).</p>
+<p>The implementational memory layout of a normal struct type value is one contiguous block of memory, possibly with memory padding between the individual fields:</p>
+<pre><code>    head
+    ______________________________________________________________________
+    |         |                  ||        |                  ||         |
+    | field 1 | possible padding || field2 | possible padding || etc.    |
+    |_________|__________________||________|__________________||_________|</code></pre>
+<p>If you want your struct data as a thing pointed to, implementationwise, you can simply embed it in a one-element dynamic array.</p>
+<p>Structs with zero fields are definitely allowed.</p>
+<p>As would be expected, two fields of the same struct may not be named identically.</p>
+<h2 id="variant-box-types"><a href="#variant-box-types"><span class="header-section-number">6.8</span> Variant-box types</a></h2>
+<pre><code>    variant-box_type ::=
+        (type &#39;/&#39;)* type </code></pre>
+<p><em>Example:</em></p>
+<pre><code>    arr f32 / game_player{health_points &#39; int    score &#39; int} / nil     // parsed as (arr f32) / game_player{health_points &#39; int   score &#39; int} / nil    </code></pre>
+<p>As far as I can understand, Memtran variant-box types aren't proper &quot;sum types&quot; -- but rather a variant-box type value is to be regarded semantically as a container value <em>containing</em> exactly one value -- which value can be of either of its type's definitional type cases! It is just that certain implicit conversion features are provided syntactically, between the variant-box type and its several definitional &quot;type cases&quot;. This means that the Memtran type <code>T / U</code> is a completely distinct type from the types <code>T</code> or <code>U</code>, as regards type identity, not a proper supertype; and its extension is not defined as the set theoretical disjoint union of the extensions of its type cases. But rather, its extension is the set of possible variant-box type values for that particular variant-box type.</p>
+<p>Time will probably tell whether this variant-box type concept was a good idea or not.</p>
+<p>The implementational memory layout of a variant-box type value is:</p>
+<pre><code>    head                  
+    ______________________________________________
+    |        |           |                       |
+    | caseNr | casevalue | possibly extra memory |
+    |________|___________|_______________________|        
+                                        
+       </code></pre>
+<p>, where <em>caseNr</em> is an integer specifying which of the types, among the type cases in the type declaration of the xorbox type, that <em>casevalue</em> has.</p>
+<p>In an assignment statement (see Chapter X), or in the implicit assignment of a function call statement (i.e. assigning the value of a non-ref argument expression to the parameter), a slot or subslot that has a variant-box type can be set directly to a value of any of the type cases in the type declaration of that variant-box type. A variant-box type value will in that case be calculated &quot;implicitly&quot;, whose <em>caseNr</em> field will be set to correspond to the correct type case, and whose <em>casevalue</em> field is set to the assigned value. The same is also true about setting the individual values of an array expression or a struct expression (see chapters X, X, X and X).</p>
+<p>You can access the <em>casevalue</em> field of a variant-box type value through a cast to one of the types among the type cases in the variant-box type. See Chapter X.</p>
+<p>You can test which type, among the type cases of the variant-box type, the <em>casevalue</em> field of an variant-box type value has, using a contenttype statement. This statement also replaces the need for many explicit variant-box casts. See Chapter X.</p>
+<p>Two type cases of a variant-box type may not be identical types.</p>
+<p>Implementational detail: In order to make it memory safe to use the <code>trash</code> keyword for the allowed kinds of variant-box type values with regard to that, all object code operations using <em>caseNr</em> are actually done on <em>caseNr</em> modulo the number of type cases of the relevant variant-box type.</p>
+<h2 id="function-types"><a href="#function-types"><span class="header-section-number">6.9</span> Function types</a></h2>
+<pre><code>    function_type ::=
+        &quot;fn&quot; &#39;&lt;&#39; [function_type_args] [&quot;to&quot; (type &#39;,&#39;)* type] &#39;&gt;&#39;    
+
+    function_type_args ::=
+        (function_type_arg &#39;,&#39;)* function_type_arg
+        
+    function_type_arg ::=
+        normal_function_type_arg
+        | ref_function_type_arg
+
+    normal_function_type_arg ::=
+        [&quot;mu&quot; | &quot;construand&quot; | (&quot;mu&quot; &quot;construand&quot;) | (&quot;construand&quot; &quot;mu&quot;)] type
+
+    ref_function_type_arg ::=
+        &quot;ref&quot; type
+       </code></pre>
+<p><em>Examples:</em></p>
+<pre><code>    fn&lt;f64, f64 to f64&gt;
+    fn&lt;&gt;
+    fn&lt;int / nil to bool, bool&gt;
+    fn&lt;ref int, construand u8, mu arr f32&gt;</code></pre>
+<p>A function type has a number (zero or more) of argument types, which (if any) are specified, separated by commas, after the &quot;triangular bracket&quot; following after the keyword <code>fn</code>.</p>
+<p>A function type can have zero or more return types. If there are more than zero return types, these return types are specified after a keyword &quot;to&quot;, separated by commas. Observe that the return type(s) are specified <em>within</em> the &quot;triangular brackets&quot;.</p>
+<p>Argument type(s) of a function type may be marked as <code>ref</code>. For an explanation of the ref argument functionality, see chapter X. Having contra not having the <code>ref</code> marker on an argument affects the identity of the function type, in an analogous way with the example with <code>mu</code> given right below.</p>
+<p>Function type normal argument types may have <code>mu</code> in front of them. For implementational reasons, this <em>does</em> affect the identity of the function type, i.e.</p>
+<pre><code>fn&lt;int&gt;</code></pre>
+<p>and</p>
+<pre><code>fn&lt;mu int&gt;</code></pre>
+<p>are <em>not</em> considered identical types.</p>
+<p>Function type normal argument types may also have <code>construand</code> in front of them. This is a purely optimizational marker, and is explained in chapter X. It, too, does affect the identity of the function type.</p>
+<p>Function type ref argument types are by default something like <code>mu</code>, and thus should <em>not</em> be marked thus.</p>
+<p>The implementational memory layout of a function type value is:</p>
+<pre><code>    head
+    ____________________
+    |                  |
+    | function pointer |
+    |__________________|
+</code></pre>
+<p>Memtran currently does not provide function types with a variable argument number.</p>
+<p>A function call (see chapter X) can be used to call the function implied by a value of function type.</p>
+<h2 id="parametrized-types"><a href="#parametrized-types"><span class="header-section-number">6.10</span> Parametrized types</a></h2>
+<p>These will be covered in Chapter X, &quot;Generics&quot;.</p>
+<h2 id="memory-layout-example"><a href="#memory-layout-example"><span class="header-section-number">6.11</span> Memory layout example</a></h2>
+<p>As seen from the BNF syntax given above, certain types are constructed from other types. Let's say we have the following type definition, followed by a variable declaration with associated assignment of a value:</p>
+<pre><code>type my_struct_type = my_struct_type{
+    the_array &#39; arr int
+    other_stuff &#39; arr f32 / bool
+}
+
+my_struct : my_struct_type = my_struct_type{
+    the_array = [1, 2, 3]
+    other_stuff = [3.14]
+}
+</code></pre>
+<p>Given this, the implementational memory layout of the value belonging to the slot <code>my_struct</code> will be like this:</p>
+<pre><code>
+    &quot;theArray&quot; field (array value)                                       &quot;otherStuff&quot; field (variant-box type value)
+    __________________________________________________________________________________________________________________________________________________________________________
+    |     |            |              |       |      |                  ||        |     |            |             |       |      |                       |                  |
+    |  o  | length (3) | totalMemory  | gflag | gptr | possible padding || caseNr |  o  | length (1) | totalMemory | gflag | gptr | possibly extra memory | possible padding |
+    |__|__|____________|______________|_______|______|__________________||________|__|__|____________|_____________|_______|______|_______________________|__________________|    
+       |                                                                             |                                 
+       v                                                                             v
+      _____________________________________                                       ________________________________                                            
+      |   |   |   |                       |                                       |      |                       |
+      | 1 | 2 | 3 | possibly extra memory |                                       | 3.14 | possibly extra memory |
+      |___|___|___|_______________________|                                       |______|_______________________|
+
+</code></pre>
+<p>The whole of this memory tree is considered one single value. Due to Memtran's semantics, you can, semantically speaking, conceptually regard the value as &quot;stored&quot; in the &quot;slot&quot; <code>my_struct</code>.</p>
+<h1 id="expressions"><a href="#expressions"><span class="header-section-number">7</span> Expressions</a></h1>
+<pre><code>    expression ::=
+        &quot;nil{}&quot; 
+        | &quot;true&quot; 
+        | &quot;false&quot;     
+        | integer_literal
+        | floating_point_number_literal
+        | string_literal 
+        | identifier_expression    
+        | type_clarified_expression                                       
+        | array_indexing_expression                 
+        | struct_indexing_expression                               
+        | array_expression
+        | struct_expression 
+        | prefix_function_call_expression
+        | infix_function_call_expression
+        | infix_operator_expression
+        | prefix_operator_expression
+        | xorbox_downcast_expression                    
+        | &amp;&amp;_expression                  
+        | ||_expression
+        | &quot;end&quot;
+        | IF_expression
+        | SWITCH_expression
+        | CONTENTTYPE_expression
+        | parenthesized_expression        
+
+    parenthesized_expression ::=
+        &#39;(&#39; expression &#39;)&#39;
+
+    </code></pre>
+<p>Expressions are used in many kinds of Memtran statements, for example assignment statements.</p>
+<p>Syntactically, you may put parentheses around expressions in order to disambiguate and/or alter their combination order. Note: it is said &quot;combination order&quot; here, not &quot;evaluation order&quot;. The actual evaluation order may be different. See Chapter X.</p>
+<h2 id="nil-1"><a href="#nil-1"><span class="header-section-number">7.1</span> <code>nil{}</code></a></h2>
+<p>This literal represents the sole value of the type <code>nil</code>.</p>
+<h2 id="true-and-false"><a href="#true-and-false"><span class="header-section-number">7.2</span> <code>true</code> and <code>false</code></a></h2>
+<p>These two literals represent the possible values of the type <code>bool</code>.</p>
+<h2 id="number-literals"><a href="#number-literals"><span class="header-section-number">7.3</span> Number literals</a></h2>
+<p><em>Examples:</em></p>
+<pre><code>    0 
+    -253458909
+    32.3
+    .83
+    -23489.</code></pre>
+<p>Integer literals are sequences of at least one digit, possibly with a minus sign at the front. Floating point number literals are sequences of at least one digit, with one period symbol interspersed among the digits, and possibly with a minus sign at the front.</p>
+<p>The exact type of a number literal, which is used as an expression, is deduced from the context. In cases where the compiler needs to guess the exact type, per default, integer literals will be guessed in the order <code>Int</code>, <code>UInt</code>, <code>I64</code>, <code>U64</code>, <code>I32</code>, <code>U32</code>, <code>I16</code>, <code>U16</code>, <code>I8</code>, <code>U8</code> (NOTE: Change this order!), and floating point number literals will be guessed in the order <code>F64</code>, <code>F32</code>. If you need or want to, you can specify the exact type of the number by embedding the number literal in a type clarified expression (see chapter X).</p>
+<p>Hexadecimal or binary notation for numbers are currently not available, but will be in the future.</p>
+<h2 id="string-literals"><a href="#string-literals"><span class="header-section-number">7.4</span> String literals</a></h2>
+<p><em>Example:</em></p>
+<pre><code>    &quot;Hello world!\n&quot;</code></pre>
+<p>(NOTE: Info about escape characters etc.)</p>
+<p>A string literal represents a dynamic size array of <code>u8</code>, representing the text of the string literal (taking the interpretation of escape characters into account), in UTF-8 encoding. In order to actually print such byte arrays as text to standard output, or to do other interesting things with them, the &quot;utf8.cim&quot; standard library must be imported (using an import statement of some kind or another -- see Chapter X). This library provides the functions</p>
+<pre><code>    fn print_utf8(byte_array &#39; arr u8)
+    fn prompt_utf8() &#39; arr u8
+    ... </code></pre>
+<p>, which operate directly on arrays of <code>u8</code>.</p>
+<p>The same library might also in later version provide an abstracted type <code>string_utf8</code>, with has further operations defined on it.</p>
+<h2 id="identifier-expressions"><a href="#identifier-expressions"><span class="header-section-number">7.5</span> Identifier expressions</a></h2>
+<pre><code>    identifier_expression ::=
+       identifier
+       | module_specified_identifier</code></pre>
+<p>An identifier expression consisting simply of an identifier will evaluate to the value stored (conceptually speaking) in the slot (mutable or immutable) with the same name, or to a function type value corresponding to a global function with the same name (but if the function name is overloaded, the exact function must sometimes be clarified by embedding the identifier expression in a type clarified expression (see Chapter X)). Also, built-in functions, or functions specified <code>inline</code>, cannot be accessed thus. To be able to get a function type value corresponding to a built-in or <code>inline</code> function, simply wrap it in another function definition, whose name can then be accessed thus. (The need for this may be obliviated in the future.)</p>
+<p>Names of types cannot be used in identifier expressions. (NOTE: they are not first class values in this initial, compiled, version of the language. But some syntactical care has been taken to make it possible to use types as first class values sometime far in the future, in some very different version of Memtran.)</p>
+<p>If the name corresponding to the identifier used as an identifier expression is not declared in the program, the compiler will complain. For names of slots, the slot must be declared and assigned to at a previous point in the program to where the identifier expression is used. For names of functions, the function can be defined anywhere in the current file, or in an imported file. But there are restrictions to when functions thus used in expressions may actually be called (i.e. using the function name identifier expression in a function call expression or statement, in the scope that contains this function, or any parent scope). See Chapter X. (NOTE: maybe the same restrictions for getting a function type value. Yes. NEW NOTE: Getting a function type value is analogous to accessing a slot, i.e. the function must prolly be declared above the referring.)</p>
+<p>Module specified identifiers will be covered in Chapter X.</p>
+<h2 id="type-clarified-expressions"><a href="#type-clarified-expressions"><span class="header-section-number">7.6</span> Type clarified expressions</a></h2>
+<pre><code>    type_clarified_expression ::=
+        expression &quot;&#39;&#39;&quot; type</code></pre>
+<p><em>Examples:</em></p>
+<pre><code>    32.3 &#39;&#39; f32
+    plus &#39;&#39; fn&lt;int, int to Int&gt;</code></pre>
+<h2 id="array-indexing-expressions"><a href="#array-indexing-expressions"><span class="header-section-number">7.7</span> Array indexing expressions</a></h2>
+<pre><code>    array_indexing_expression ::=
+        expression &#39;[&#39; expression &#39;]&#39; </code></pre>
+<p><em>Example:</em></p>
+<pre><code>    my_array[32][x + 19] </code></pre>
+<p>The expression to the left should evaluate to a dynamic size array type value. The expression between the brackets should evaluate to an integer &gt;= 0 of type <code>int</code> (NOTE: more type alternatives may be implemented later).</p>
+<p>This operation gets the value corresponding to the index specified by the expression between the brackets, of the array type value specified by the expression to the left. If the index is out of bounds for the array type value, a runtime error is thrown by the program. In the case when the <code>--recovermode</code> compiler flag is set, the error can be recovered from when the index type of the relevant array is any of the types nil, bool, u8, u16, u32, u64, uint, i8, i16, i32, i64, int, or struct types or variant-box types thereof, possibly recursively so. A non-specified value of the relevant index type will be returned in that case. For other index types, the program will always exit with an error message.</p>
+<h2 id="struct-indexing-expressions"><a href="#struct-indexing-expressions"><span class="header-section-number">7.8</span> Struct indexing expressions</a></h2>
+<pre><code>    struct_indexing_expression ::=
+        expression &#39;.&#39; identifier</code></pre>
+<p>The expression to the left of the period symbol should evaluate to a struct type value. The identifier to the right of the period symbol should be an identifier representing one of the fields of the struct type value of the expression to the left.</p>
+<p>This operation evaluates to the value of the field specified by the identifier to the right of the period symbol, of the struct type value specified by the expression to the left.</p>
+<h2 id="array-expressions"><a href="#array-expressions"><span class="header-section-number">7.9</span> Array expressions</a></h2>
+<pre><code>    array_expression ::=
+        array_expression_individual_values
+        | array_expression_repeated_initialization
+        | array_expression_no_initialization</code></pre>
+<h3 id="array-expressions-of-individual-values"><a href="#array-expressions-of-individual-values"><span class="header-section-number">7.9.1</span> Array expressions of individual values</a></h3>
+<pre><code>    array_expression_individual_values ::=
+        &#39;[&#39; [(expression &#39;,&#39;)* expression] &#39;]&#39;</code></pre>
+<p><em>Examples:</em></p>
+<pre><code>    []
+    [2, 3, 8 + x, 15, 26]
+    [&quot;Hello&quot;, &quot; world!\n&quot;]
+    [[1, 2 , 3], [1, 2]] </code></pre>
+<p>This expression evaluates to an array containing, at consecutive indices starting from 0 for the leftmost expression between the brackets, the values of the consecutive comma separated expressions between the '<code>[</code>' and the '<code>]</code>'.</p>
+<p>The exact type of the array produced is deduced from the surrounding context. But there are some cases in which it would be theoretically possible to infer the exact type, but in which the current type inferrer of the compiler might still need to ask you to specify the exact type, by putting the array expression of individual values into a type clarified expression.</p>
+<p>When the indices type of the array expression is deduced from the context as being a variant-box type, and the corresponding expression for an index in the array expression is of a type that is one of the type cases of the variant-box type, the expression's value will automatically be converted to a value of that variant-box type (i.e. at runtime, in the general case (NOTE: ??)), which will have its <em>caseNr</em> and <em>casevalue</em> fields set correspondingly.</p>
+<p>If this expression were a regular (built-in) function, the constituting expressions would be considered 'construand' arguments.</p>
+<h3 id="array-expressions-of-repeated-initialization"><a href="#array-expressions-of-repeated-initialization"><span class="header-section-number">7.9.2</span> Array expressions of repeated initialization</a></h3>
+<pre><code>    array_expression_repeated_initialization ::=
+       &#39;[&#39; expression &quot;repeat&quot; expression &#39;]&#39;</code></pre>
+<p><em>Example:</em></p>
+<pre><code>    [0 repeat 5] // gives the same value as [0, 0, 0, 0, 0]</code></pre>
+<p>These expressions evaluate to an array of length specified by the expression (which should evaluate to an integer &gt;= 0 of type <code>int</code> (NOTE: more type alternatives may be implemented later)) to the right of the <code>repeat</code> keyword, containing the value of the expression to the left of the <code>repeat</code> keyword, <em>repeatedly evaluated</em> across all the indices of the array. This means that if the expression to the left gives different values for consecutive evaluations of it, the produced array may come to have differing values at differing indices. Which can probably be useful as an array initialization technique.</p>
+<p>The &gt;= 0 constraint is checked at runtime, and if the check fails a runtime error will occur. But if the <code>--recovermode</code> compiler flag is set, the expression will simply return an empty array in this case.</p>
+<p>The exact type of the array value produced will be deduced from the surrounding context. But there are some cases in which it would be theoretically possible to infer the exact types, but in which the current type inferrer of the compiler might still need to ask you to specify the exact type, by putting the array expression of repeated values into a type clarified expression.</p>
+<p>When the indices type of the array expression is deduced from the context as being an variant-box type, and the expression for the repeated value in the array expression is of a type that is one of the type cases of the variant-box type, that expression's value will automatically be converted to a value of the variant-box type, which will have its <em>caseNr</em> and <em>casevalue</em> fields set correspondingly.</p>
+<p>If this expression were likened to a regular (built-in) function call, to the extent that such likening is possible, the repeated evaluation of the expression to the left of the semicolon would be considered to be producing the arguments to a series of 'construand' parameters.</p>
+<h3 id="array-expressions-with-no-initialization"><a href="#array-expressions-with-no-initialization"><span class="header-section-number">7.9.3</span> Array expressions with no initialization</a></h3>
+<pre><code>    array_expression_no_initialization ::=
+        &#39;[&#39; (&quot;trash&quot; | &quot;uninitialized&quot;) expression &#39;]&#39;</code></pre>
+<p><em>Examples:</em></p>
+<pre><code>    [trash 13]
+    [uninitialized x + 7]</code></pre>
+<p>These expressions evaluate to an array of length specified by the expression (which should evaluate to an integer &gt;= 0 of type <code>int</code> (NOTE: more type alternatives may be implemented later)) to the right of the semicolon.</p>
+<p>The &gt;= 0 constraint is checked at runtime, and if the check fails a runtime error will occur. But if the <code>--recovermode</code> compiler flag is set, this expression will simply return an empty array in that case.</p>
+<p>The exact type of the array produced is deduced from the surrounding context. But there are some cases in which it would be theoretically possible to infer the exact type, but in which the current type inferrer of the compiler might still need to ask you to specify the exact type, by putting the array expression with no initialization into a type clarified expression.</p>
+<p>Allowed types of the indices type of the array expression's type, for the <code>trash</code> variant, are: <code>nil</code>, <code>bool</code>, <code>i8</code>, <code>i16</code>, <code>i32</code>, <code>i64</code>, <code>int</code>, <code>u8</code>, <code>u16</code>, <code>u32</code>, <code>u64</code>, <code>uint</code>, <code>f32</code>, <code>f64</code>, or struct types or variant-box types thereof, possibly recursively so. This expression variant produces UNSPECIFIED values at the indices of the array -- actually uninitialized memory, but safe to access anyway from a crass memory safety perspective, since it will always possible to interpret the bit patterns accessed in some acceptable way with regards to memory safety, for the listed allowed types.</p>
+<p>When programming generic functionality using function templates, and in some other circumstances, the restriction to the index types listed can be annoying. Therefore, the potentially memory unsafe, <code>uninitialized</code> variety of this kind of expression can be used instead. When actually initializing such memory (which should recommendably be done as soon as possible, and certainly before the end of the lifetime of the slot that ends up holding the produced value), the keyword <code>uninitialized</code> can also be specified in the assignment statement(s) used -- this prevents the program from trying to automatically destruct the previous value otherwise assumed to be stored in such a slot.</p>
+<p>If, using <code>uninitialized</code>, you are unsure whether the resulting program is memory safe, you should probably use an alternative solution instead, such as using an array expression with repeated initialization, initializing to a specific value of the type your array is indexed with, provided such an example value can be obtained. This can of course mean extra work for your program, so it is up to you to decide which strategy to use.</p>
+<p>(NOTE: Below follows old rants)</p>
+<p>The allowed types of the indices type may be subject to change in the future, but this restriction is so as to prevent dangerous behaviour of the program such as segmentation faults and random overwrites of memory. (NOTE: together with generics, this restriction can be cumbersome. Maybe relax it... or not. (NOTE NOTE: keep this probably -- in such cases, most of the time, you have available an example value of the required indice type, and can use that to form an array of repeated values instead. Not as fast, but a good compromise.))</p>
+<h3 id="solution-for-v0.3"><a href="#solution-for-v0.3"><span class="header-section-number">7.9.4</span> Solution for v0.3:</a></h3>
+<p>As for v0.3, the syntax is:</p>
+<pre><code>    &lt;array expression no initialization&gt; ::=
+        &#39;#[&#39; [&quot;unsafenothing&quot;] &#39;;&#39; &#39;]&#39; [&quot;noextramemory&quot;]
+</code></pre>
+<p>You will actually can use <code>noextramemory</code> on all three types of array expression.</p>
+<p>But for custom allocators, I guess you need unsafe typecasts too... Maybe the cInterface will provide such functionality... otherwise don't bother.</p>
+<h2 id="struct-expressions"><a href="#struct-expressions"><span class="header-section-number">7.10</span> Struct expressions</a></h2>
+<pre><code>    struct_expression ::=
+        identifier &#39;{&#39; (identifier &#39;=&#39; expression)* &#39;}&#39;</code></pre>
+<p><em>Example:</em></p>
+<pre><code>    monster{
+        health_points = 100 
+        score = total_score + 3 
+        id = id
+    }</code></pre>
+<p>This expression evaluates to a struct of the type specified by the provided &quot;tag&quot;, the field identifiers, and the types of the expressions to the right of the <code>=</code> operators, taken together. Additionaly, information from the surrounding context is sometimes also used to infer the exact type of the struct.</p>
+<p>When the type of a field of the struct expression is deduced from the context as being of a variant-box type, and the corresponding expression for the field in the struct expression is of a type that is one of the type cases of the variant-box type, the expression's value will automatically be converted to a value of that variant-box type, which will have its <em>caseNr</em> and <em>casevalue</em> fields set correspondingly.</p>
+<p>If this expression were a regular (built-in) function, the subexpressions defining the values of the fields would be considered 'construand' arguments.</p>
+<h2 id="function-call-expressions"><a href="#function-call-expressions"><span class="header-section-number">7.11</span> Function call expressions</a></h2>
+<pre><code>    prefix_function_call_expression ::=
+        identifier_expression &#39;(&#39; [(prefix_function_call_arg &#39;,&#39;)* prefix_function_call_arg] &#39;)&#39;               
+        
+    prefix_function_call_arg ::=
+        [identifier &quot;=&quot;] expression
+        | &quot;ref&quot; [identifier &quot;=&quot;] lvalue
+
+    infix_function_call_expression ::=
+        expression &#39;`&#39; identifier_expression &#39;`&#39; expression                              
+</code></pre>
+<p><em>Examples:</em></p>
+<pre><code>    reverse(my_array)
+    parse(file = &quot;test.cip&quot;)
+
+    concat([&quot;a&quot;, &quot;b&quot;], [&quot;c&quot;, &quot;d&quot;])
+
+    [&quot;a&quot;, &quot;b&quot;] `concat` [&quot;c&quot;, &quot;d&quot;]
+    next_token()
+    modify_something_and_calculate_some_result(3.14, ref bernie[32])</code></pre>
+<p>A function call expression will evaluate its argument expressions (in an evaluation order discussed in Chapter X), and then call a function (a built-in function or one defined by a function definition statement (see Chapter X)), and the function call expression evaluates to the return value of that function (the function called must have exactly one return value).</p>
+<p>Any side-effects of the argument expressions, or of the called function, will be performed.</p>
+<p>There is a &quot;prefix notation&quot;, usable in the general case, and a less general &quot;infix notation&quot;, for function calls.</p>
+<p>In the prefix notation, the identifier expression to the left (which should be of a function type) (also, this expression is considered part of the general procedure for evaluation order! (NOTE: maybe...)) is evaluated to a function, and that function is then called with the values of the expressions of the comma separated function call arguments between the parentheses, such that their values are assigned to the parameters (as defined in the called function's function definition) of the function called, in their respective order of appearance.</p>
+<p>In prefix notation, prefix function call arguments may be named with an identifier (followed by the token <code>=</code>) for clarity, which must then correspond to the name of the parameter as declared in the function definition header of the called function. That this is so is checked by the compiler when the expression to the left of the '<code>(</code>' is a simple identifier expression referring to a function definition (i.e. not, for example, when it refers to a slot holding a function type value), but not when the expression to the left of '<code>(</code>' is referring to a slot holding a function type value. In such other cases, one can say that giving the wrong name for a parameter is actually allowed. Also, observe that named parameters in Memtran currently do not allow for reordering of the arguments in the function call. They are just something that can be inserted for extra clarity.</p>
+<p>In the infix notation, the identifier expression between the backticks is evaluated to a function, which function must have exactly two argument types, which is then called, with the values of the two expressions on the left and the right assigned to its two parameters.</p>
+<p>So, for example:</p>
+<pre><code>    a `concat` b</code></pre>
+<p>is equivalent to</p>
+<pre><code>    concat(a, b)</code></pre>
+<p>When a parameter of some called function is of a variant-box type, and the corresponding expression for the argument in the function call is of a type that is one of the type cases of the xorbox type, the expression's value will automatically be converted to the right variant-box type, which will have its <em>caseNr</em> and <em>casevalue</em> fields set correspondingly. This is not true for the lvalues of ref arguments (NOTE: or is it? NO).</p>
+<h3 id="ref-arguments"><a href="#ref-arguments"><span class="header-section-number">7.11.1</span> Ref arguments</a></h3>
+<p>Function call expression arguments can also consist of the keyword <code>ref</code>, followed by an &quot;lvalue&quot;, possibly with a named parameter identifier and an <code>=</code> inbetween (the possibility of a named parameter exists only for prefix notation function call expressions). For an explanation of the ref argument system and lvalues, see Chapters X and X.</p>
+<h2 id="non-short-circuited-prefix-and-infix-operator-expressions"><a href="#non-short-circuited-prefix-and-infix-operator-expressions"><span class="header-section-number">7.12</span> Non-short-circuited prefix and infix operator expressions</a></h2>
+<pre><code>    prefix_operator_expression ::=
+        (&#39;!&#39; | &#39;-&#39;) expression                     
+
+    infix_operator_expression ::=
+        expression (&#39;==&#39; | &#39;!=&#39; | &#39;&gt;&#39; | &#39;&lt;&#39; | &#39;&gt;=&#39; | &#39;&lt;=&#39; | &#39;+&#39; | &#39;-&#39; | &#39;*&#39; | &#39;/&#39; | &#39;%&#39;) expression
+        </code></pre>
+<p>These are built-in functions that have a special operator syntax. They can have different precedence than normal function calls. The <code>-</code> token can be both a prefix operator and an infix operator. The parser will interpret it as an infix operator wherever that is possible to do.</p>
+<p>For precedence rules, see Chapter X.</p>
+<p>To use these built-in operators as function type values, you have to embed them in another function definition. This is currently true for all built-in functions, but that may, perhaps, change.</p>
+<h2 id="variant-box-downcast-expressions"><a href="#variant-box-downcast-expressions"><span class="header-section-number">7.13</span> variant-box downcast expressions</a></h2>
+<pre><code>    xorbox_downcast_expression ::=
+        expression &#39;...&#39; type</code></pre>
+<p>The expression to the left of the <code>...</code> should evaluate into a xorbox type value. This returns the value of the <em>casevalue</em> field of the xorbox type value, provided it is of the type specified. This will throw a runtime error if the cast did not succeed. If the <code>--recovermode</code> compiler flag is set, and the type casted to is one of nil, bool, u8, u16, u32, u64, uint, i8, i16, i32, i64, int, or struct types or variant-box types thereof, possibly recursively so, the expression will simply return a non-specified value of the relevant type. In the case of casting to other types, the program will always exit with an error message.</p>
+<h2 id="expressions-and-expressions"><a href="#expressions-and-expressions"><span class="header-section-number">7.14</span> <code>&amp;&amp;</code> expressions and <code>||</code> expressions</a></h2>
+<p>(NOTE: short-circuited)</p>
+<h2 id="end"><a href="#end"><span class="header-section-number">7.15</span> <code>end</code></a></h2>
+<p><code>end</code> is a (perhaps somewhat silly?) abbreviation that can be used within array indexing expressions and array indexing lvalues.</p>
+<p>Example:</p>
+<pre><code>    my_long_array_name[end - 4] = my_other_long_array_name[end]</code></pre>
+<p>Expands to:</p>
+<pre><code>    my_long_array_name[(len(my_long_array_name) - 1) - 4] = my_other_long_array_name[(len(my_other_long_array_name) - 1)]</code></pre>
+<p>If there are nested array indexings, <code>end</code> will use the closest array evaluating expression in its expansion.</p>
+<p>Example:</p>
+<pre><code>    my_long_array_name[struct.field[end]]</code></pre>
+<p>Expands to:</p>
+<pre><code>    my_long_array_name[struct.field[(len(struct.field) - 1)]]</code></pre>
+<p><code>end</code> cannot be used outside an array indexing.</p>
+<h2 id="if-expressions-switch-expressions-and-contenttype-expressions"><a href="#if-expressions-switch-expressions-and-contenttype-expressions"><span class="header-section-number">7.16</span> IF expressions, SWITCH expressions, and CONTENTTYPE expressions</a></h2>
+<pre><code>    IF_expression ::=
+        &quot;IF&quot; expression &#39;~&#39; expression &quot;ELSE&quot; &#39;~&#39; expression      // note: this can be chained
+
+    SWITCH_expression ::=
+        &quot;SWITCH&quot; expression (&quot;CASE&quot; (expression &#39;,&#39;)* expression &#39;~&#39; expression)* &quot;DEFAULT&quot; &#39;~&#39; expression
+
+    CONTENTTYPE_expression ::=
+        &quot;CONTENTTYPE&quot; expression (&quot;CASE&quot; (type &#39;,&#39;)* type &#39;~&#39; expression)* &quot;DEFAULT&quot; &#39;~&#39; expression</code></pre>
+<p>These are syntactically thematic expression variants of the if statement, the switch statement, and the contenttype statement.</p>
+<p>TODO: document these more carefully.</p>
+<p>Automatic downcasting in CONTENTTYPE CASE expressions is enabled whenever the CONTENTTYPE expression is a simple identifier expression.</p>
+<p>PERFORMANCE NOTE: These expressions are not to be counted as built-in functions with a special syntax, but are rather special short-circuited expressions. That means that they are simply &quot;branchers&quot; between different expression evaluations. I.e. these expressions are not to be seen as args to params which are then returned as implementational owners, which could have meant extra copying. Also, implementationally, possible automatically generated destruction operations will respect possible different transfer depending on which branch is chosen.</p>
+<h1 id="lvalues"><a href="#lvalues"><span class="header-section-number">8</span> Lvalues</a></h1>
+<pre><code>    lvalue ::=
+        lvalue_identifier_expression
+        | lvalue_array_indexing
+        | lvalue_struct_indexing
+        | lvalue_xorbox_downcast
+        | lvalue_type_clarification
+        | parenthesized_lvalue    
+
+    lvalue_identifier_expression ::=
+        identifier_expression
+
+    lvalue_array_indexing ::=
+        lvalue &#39;[&#39; expression &#39;]&#39;
+
+    lvalue_struct_indexing ::=
+        lvalue &#39;.&#39; identifier
+
+    lvalue_xorbox_downcast ::=
+        lvalue &#39;...&#39; type
+
+    lvalue_type_clarification ::=      
+        lvalue &quot;&#39;&#39;&quot; type
+
+    parenthesized_lvalue ::=
+        &#39;(&#39; lvalue &#39;)&#39;    
+</code></pre>
+<p>Lvalues are a class of syntactical constructions in Memtran programs, which are syntactically identical to a subset of expressions, but considered a distinct class of syntactical constructions, expected at certain syntactical positions where expressions in general are not allowed. Lvalues are used in assignment statements, ref arguments, and in the <code>over</code> construct of for statements.</p>
+<p>Lvalues can be thought of as being either slot names, or path descriptions into the subslots of a slot containing an array, a struct, or a xorbox type value. There is also the &quot;lvalue_type_clarification&quot; syntactic construction, although such type clarification should not be needed actually. Identifiers corresponding to a function name (global or local), or a type name, may not be used in lvalue identifier expressions. (I.e. not a function name per se -- but it <em>can</em> be a name of a slot holding a function value.)</p>
+<p>You may put parentheses around your lvalues for clarity. They aren't really needed for disambiguation purposes, though.</p>
+<h1 id="statements-and-top-level-structure"><a href="#statements-and-top-level-structure"><span class="header-section-number">9</span> Statements and top-level structure</a></h1>
+<pre><code>    program ::=
+        import_statement* ordinary_statement*
+
+    ordinary_statement ::=
+        block
+        | type_declaration_statement
+        | assignment_statement 
+        | function_call_statement 
+        | function_declaration_statement 
+        | return_statement 
+        | contenttype_statement                                   
+        | if_statement 
+        | switch_statement
+        | loop_statement                                                                    
+        | for_statement
+        | break_statement                                                                 
+        | continue_statement
+        | template_declaration_statement</code></pre>
+<p>Import statements will be covered in chapter X.</p>
+<p>A Memtran program has no &quot;main&quot; function, but simply lists a number of statements in the order they should be evaluated (although type declarations and function declarations have some &quot;atemporal&quot; qualities to them, so to speak).</p>
+<h2 id="blocks"><a href="#blocks"><span class="header-section-number">9.1</span> Blocks</a></h2>
+<pre><code>    block ::=
+        &#39;:&#39; ordinary_statement* &#39;;&#39;</code></pre>
+<p>A block defines a scope (NOTE: Or how do you put it?). It contains a sequence of zero or more statements, and any functions, or variables (mutable or immutable), declared within the block are local to the block. A block can be a statement by itself (NOTE: this may change).</p>
+<p>Functions <em>may</em> be declared within a block.</p>
+<p>Currently, and expected to stay that way, types may <em>not</em> be declared within a block, but only in the global scope.</p>
+<p>Names of functions, or variables (mutable or immutable), declared within a block may overshadow identifiers declared in any surrounding context. Identifiers declared within a block may not overshadow names of parameters, variables or alias names that the statement containing the block brings into the block, such as in function declarations with definitions, for statements, typeswitch statements or <code>over</code> statements.</p>
+<p>Any identifiers defined in any of the containing contexts may be used within a block, provided they are defined at a previous point in the program to where the block is located. Functions names may also in many cases be used before they are defined in the program. See chapter X. Type names declared later in the same file can also be used.</p>
+<p>Functions or variables (mutable or immutable) declared within a block may not be marked as <code>internal</code> (the <code>internal</code> specifier being a feature of the module system, see chapter X). Only global variables (mutable or immutable) and functions may be marked <code>internal</code>.</p>
+<h2 id="type-declaration-statements"><a href="#type-declaration-statements"><span class="header-section-number">9.2</span> Type declaration statements</a></h2>
+<pre><code>    type_declaration_statement ::=
+        &quot;type&quot; identifier &#39;=&#39; type 
+        | &quot;type&quot; identifier &#39;(&#39; (identifer &#39;,&#39;)* identifier &#39;)&#39; &#39;=&#39; type   // parametrized type</code></pre>
+<p><em>Examples:</em></p>
+<pre><code>    type my_array = arr f32
+    type parse_error = parse_error{}</code></pre>
+<p>The definition type (the type specified after the <code>=</code> token) of a type declaration and definition may contain identifiers (or module specified identifiers) being the names of types defined in a file imported by the current file, or types defined anywhere in the current file. (No forward declarations of types are necessary within a file. And it is currently not possible to forward declare types between files.)</p>
+<p>Similarly, named types used in any other statement than a type declaration statement must have been declared somewhere in the current file, or in a file imported by the current file.</p>
+<p>Types may only be declared and defined in the global scope. Type declarations may (currently) not be marked as <code>internal</code>.</p>
+<p>Recursive type declarations are allowed. For some kinds of recursive declarations though, it will be impossible to actually instantiate a value of the declared type. Declaring such types is currently allowed anyway, and not checked for. (IMPL. NOTE: TODO/DONE Make sure compiler passes or helper procedure code generation don't stall on such types.)</p>
+<p>Note: During the design of the language, it was discovered that type identity for recursive types (as defined using named types declared in a type declaration statement), is somewhat problematic to calculate. Therefore, in the current implementation, you cannot assume that Memtran will understand whether two recursive types that would seem to have the same structure, are equivalent. This should probably not matter much in practice, but may be improved upon, or lead to changes, in future versions.</p>
+<p>Parametrized types are covered in chapter X, &quot;Generics&quot;.</p>
+<h2 id="assignment-statements-and-variable-declarations"><a href="#assignment-statements-and-variable-declarations"><span class="header-section-number">9.3</span> Assignment statements and variable declarations</a></h2>
+<pre><code>    assignment_statement ::=
+        assignment_receiver &#39;=&#39; expression                                                   // &quot;normal&quot; assignment
+        | (assignment_receiver &#39;,&#39;)+ assignment_receiver &#39;=&#39; function_call_expression        // assigning multiple return values
+        | compound_assignment_statement                                                      // i.e. using +=, -=, *=, /= or %= instead of = 
+
+    assignment_receiver ::=
+        variable_declaration
+        | [&quot;uninitialized&quot;] lvalue
+</code></pre>
+<p><em>Example:</em></p>
+<pre><code>    mu a &#39; f32 = 1.7 // a mutable variable &#39;a&#39; is declared and assigned a value
+    
+    a = 3.14 // reassignment of the variable
+
+    a, internal mu d &#39; u8 = strangeFunction() // multiple return value assignment
+
+    mu array &#39; arr f32 = [2.3, 4.5, 6.7] 
+
+    array[2] = 0.1 // index assignment
+
+    array2 &#39; arr f32 = array  // an immutable &#39;array2&#39; variable is initialized to the whole of &#39;array&#39;                              
+</code></pre>
+<p>An assignment statement puts the value of the expression to the right of the assignment operator <code>=</code>, into the mutable slot or mutable subslot specified by the <em>lvalue</em>, or the variable (mutable or immutable) specified by the <em>variable declaration</em>, to the left of the assignment operator. The thing to the left must agree with the expression to the right as to its type.</p>
+<p>Alternatively, an assignment statement puts the multiple return values of a function call to the right of the assignment operator <code>=</code>, into the mutable slot or mutable subslot specified by the comma separated multiple lvalues, and/or variables (mutable or immutable) specified by the variable declarations, to the left of the assignment operator. In this case, the number of comma-separated things to the left must correspond to the number of return values of the function called. Also, the things to the left must agree with the return values of the function to the right as to their type and order. (NOTE: skriv motsvarande för funktionsanrop-argument i vederbörande kapitel)</p>
+<h3 id="variable-declarations"><a href="#variable-declarations"><span class="header-section-number">9.3.1</span> Variable declarations</a></h3>
+<pre><code>    variable_declaration ::=
+        [&quot;mu&quot; | &quot;internal&quot; | (&quot;internal&quot; &quot;mu&quot;) | (&quot;internal&quot; &quot;private&quot;)] identifier &quot;&#39;&quot; type
+     </code></pre>
+<p>A variable (mutable or immutable) may not be referred to previous in the program to where it has been declared and assigned to (variable declaration is always simultaneous with assignment in Memtran).</p>
+<h3 id="lifetime-of-slots"><a href="#lifetime-of-slots"><span class="header-section-number">9.3.2</span> Lifetime of slots</a></h3>
+<p>The lifetime of a slot is for the length of the block (taking into consideration that each function call can be considered to create a unique instance of the corresponding function definition's body block) its definition belongs to, or, for slots defined in the global scope, for the lifetime of the program. When a slot's lifetime is up, the computer memory used by the slot is freed for repeated usage by the program. (But for some additional details, see Chapter X, i.e., for example, if its ownership has been transferred, &quot;under the hood&quot;, nothing is freed at this point.)</p>
+<h3 id="compound-assignment-statements"><a href="#compound-assignment-statements"><span class="header-section-number">9.3.3</span> Compound assignment statements</a></h3>
+<pre><code>    compound_assignment_statement ::=
+        lvalue (&#39;+=&#39; | &#39;-=&#39; | &#39;*=&#39; | &#39;/=&#39; | &#39;%=&#39;) expression
+        | (lvalue &#39;,&#39;)+ lvalue (&#39;+=&#39; | &#39;-=&#39; | &#39;*=&#39; | &#39;/=&#39; | &#39;%=&#39;) function_call_expression  // &quot;multiple compound assignment&quot; -- (NOTE: elaborate on exactly what this does...) </code></pre>
+<p>These are known from other C-style syntax languages. I.e.:</p>
+<pre><code>    i += 3 </code></pre>
+<p>will add 3 to the value held in a mutable slot, or subslot of a mutable slot, represented by the lvalue <code>i</code>, &quot;in-place,&quot; so to speak.</p>
+<p>(NOTE: &quot;Multiple compound assignment not yet implemented.&quot;)</p>
+<h2 id="function-call-statements"><a href="#function-call-statements"><span class="header-section-number">9.4</span> Function call statements</a></h2>
+<pre><code>    function_call_statement ::=
+        function_call_expression</code></pre>
+<p>This looks and functions just like a function call expression, except that the function called should have exactly zero return types.</p>
+<h2 id="function-declaration-statements-and-return-statements"><a href="#function-declaration-statements-and-return-statements"><span class="header-section-number">9.5</span> Function declaration statements and return statements</a></h2>
+<pre><code>    function_declaration_statement ::=
+        [&quot;inline&quot; | &quot;internal&quot; | (&quot;inline&quot; &quot;internal&quot;) | (&quot;internal&quot; &quot;inline&quot;)] &quot;fn&quot; identifier &#39;(&#39; [(param &#39;,&#39;)* param] &#39;)&#39; [&quot;&#39;&quot; (type &#39;,&#39;)* type] block
+
+    param ::=
+        ref_param
+        | normal_param
+
+    ref_param ::=
+        &quot;ref&quot; identifier &quot;&#39;&quot; type          
+
+    normal_param ::=
+        [&quot;mu&quot; | &quot;construand&quot; | (&quot;mu&quot; &quot;construand&quot;) | (&quot;construand&quot; &quot;mu&quot;)] identifier &quot;&#39;&quot; type
+   </code></pre>
+<p><em>Examples:</em></p>
+<pre><code>    // Add examples here...</code></pre>
+<p>A non-ref function parameter is, for the purposes of Memtran, a slot (mutable or immutable) with the lifetime of the instance of its function definition's body block, that is assigned as its (initial, in the case of <code>mu</code> parameters) value an argument provided in the function call. The argument must agree with the parameter as to its type.</p>
+<p>As in most other modern languages, functions can call themselves recursively, directly or indirectly. When a function calls itself, a new function block can be considered to be stored on the stack for each iteration of the function. So, it is not the same block that is being reused, which would lead to overwrites of its variables/parameters. In some cases, such recursion may fill the whole stack memory, in which case X will occur. Currently, Memtran does not provide tail call optimization.</p>
+<p>In the global scope, or in a block, a function <em>F</em> that has not yet been declared, may not be called directly. But a second function <em>G</em> may be declared in the same scope, which calls the not yet declared <em>F</em>, but then <em>G</em> may not be called directly until after the <em>F</em> has been declared. (NOTE: ändra detta och elaborera, när typecheck pass 1 implementeras.)</p>
+<h3 id="ref-parameters"><a href="#ref-parameters"><span class="header-section-number">9.5.1</span> Ref parameters</a></h3>
+<p>A ref parameter expects a slot or subslot as its lvalue function call argument, instead of an expression value.</p>
+<p>Example:</p>
+<pre><code>    fn set_to_3(ref x &#39; int) :
+        x = 3
+    ;
+
+    mu a &#39; int = 5
+    set_to_3(ref a)   // a is now 3</code></pre>
+<p>You can provide an arbitrary lvalue as argument to a ref parameter, i.e. letting it refer to a subslot of some slot. But the slot which is passed, or whose subslot is passed, has to be mutable.</p>
+<p>Another thing: please do not use ref parameters unless you intend to modify the slot or subslot represented by the argument lvalue (i.e. or subslots of it) at the caller site, i.e. don't use ref parameters just because you think it would be faster than using normal parameters, unless you have a very good reason for that, as that will make your program harder to understand, the <code>ref</code> argument marker at the corresponding function calls being intended to notify a reader of a program that your function will modify that argument.</p>
+<p>When the lvalue passed as a ref argument is a subslot of a global variable, and this variable has a value having implementationwise both a head, and things pointed to (and maybe for structs too, but NO), a &quot;mutlock&quot; flag is set for that variable. This hinders the program from modifying that variable through other means than through the ref parameter, for the duration of the function call.</p>
+<p>The following is an example of how to invoke the mutlock, runtime:</p>
+<pre><code>    mu array &#39; arr f64 = [1.2, 3.4, 5.6]
+
+    fn add3(ref array_index : f64) :
+        array = []             // this line will throw a runtime error: variable is mutlocked
+        array_index += 3.0   
+    ;
+
+    add3(ref array[1])</code></pre>
+<p>There is currently no way of recovering from a mutlock invocation error, so setting the <code>--recovermode</code> compiler flag does not change anything in this case. But this may perhaps be improved on in future versions.</p>
+<p>The above is also true for certain local variables. Below is some musing about that for the future.</p>
+<p>For local variables or parameters, the compiler will protest already at compile time if you will, or even might (the latter in the presence of branching constructs), violate an imagined runtime mutlock. Since it throws an compile time error for all possible such mutlock-invoking cases, the runtime will not actually need to set any mutlock for any local slots.</p>
+<p>NOTE: Dessa två är fallen:</p>
+<pre><code>// A
+
+fn foo() {
+    mu a : [mu] Int = #[1, 2, 3, 4, 5]
+
+    fn bar(ref i : Int) {
+        a = #[]
+        i += 1
+    }
+
+    bar(ref a[3])
+}
+
+
+// B
+
+fn foo2() {
+    mu a : [mu] Int = #[1, 2, 3, 4, 5]
+
+    fn bar2(ref i : Int) {
+        baz()
+        i += 1
+    }
+
+    fn baz() {
+        a = #[]
+    }
+
+    bar2(ref a[3])
+}
+</code></pre>
+<p>Så frågan är: tar baz() en implicit ref-parameter. Eller en implicit reference-type-value? Eller ska vi strunta i local functions? Svar: lokala funktioner som modifierar sin lokala omgivning tar en implicit reference-type-value-parameter. Dessa kollar alltid mutlock först.</p>
+<p>Angående statisk analys: analysera för fall A, om det finns berörande fall, använd mutlock-flagging-checking, samt ge kompilator-användaren en warning.</p>
+<h3 id="return-statements"><a href="#return-statements"><span class="header-section-number">9.5.2</span> Return statements</a></h3>
+<pre><code>return_statement ::=
+    &quot;return&quot; [(expression &#39;,&#39;)* expression]</code></pre>
+<p>Return statements can only be used inside a function definition's body block, not in the global scope, or in block statements used in the global scope (NOTE: but we could possibly define such usage as equivalent to calling an exit() function. But probably not desirable!!!). The number of return expressions must be equivalent to the number of return types of the containing function definition. Since semicolons are optional, giving the wrong number of return expressions (which is somewhat similar to forgetting to declare the return type(s) of a declared function!) will confuse the parser and hence give rise to somewhat cryptic parse errors.</p>
+<p>The types of the return expressions must agree with the return types of the containing function definition.</p>
+<p>The compiler will also check function definitions for missing return statements -- the rule being that it must be able to prove, using a specific basic proving algorithm, that a function with more than zero return types will return (a) value(s) of that/those type(s), with an explicit return statement -- for all branching possibilities.</p>
+<h2 id="contenttype-statements"><a href="#contenttype-statements"><span class="header-section-number">9.6</span> Contenttype statements</a></h2>
+<pre><code>    contenttype_statement ::=
+        &quot;contenttype&quot; expression (&quot;case&quot; (type &#39;,&#39;)* type block)+ [&quot;default&quot; block]
+        | &quot;contenttype&quot; expression &quot;default&quot; block</code></pre>
+<p><em>Example:</em></p>
+<pre><code>    mu my_variant_box &#39; arr u8 / nil / bool / int 
+        = &quot;The value is of arr u8 type!\n&quot;
+
+    contenttype my_variant_box case arr u8 :
+   
+        print_utf8(my_variant_box)       // &quot;my_variant_box&quot; can here be treated as casted into arr u8 (i.e. the &quot;raw string type&quot;, so to speak)
+        my_variant_box = &quot;Previous string was printed.\n&quot;
+
+    ; case nil :
+
+        print_utf8(&quot;It&#39;s nil!\n&quot;)
+
+    ; default :
+
+        print_utf8(&quot;Default case.\n&quot;)
+
+    ;</code></pre>
+<p>Contenttype statements let you check the actual type case of an variant-box type value's contents, that variant-box type value being the value of the expression at the beginning of the contenttype statement, and choose different execution paths depending on its type case. A <code>default</code> case can be inserted into the contenttype statement after the normal contentype statement cases, whose block will be the path of execution provided none of the above type cases match the variant-box type's type case. (Actually, it will expand to all the missing cases.)</p>
+<p>As a comfortability feature, if the expression at the beginning of the contenttype statement consists of an <em>identifier expression</em>, then within a given typeswitch case, that identifier expression will be considered as an alias for its xorbox type value casted into the type after the keyword <code>case</code> of that typeswitch case. This alias can be used in lvalues or expressions. It will overshadow the meaning of that identifier expression as outside the typeswitch statement. If the expression at the beginning of the typeswitch statement is any other expression than an identifier expression, you will have to xorbox cast it explicitly in order to access its type case value, even within a typeswitch statement case of that type case.</p>
+<p>For the comfortability feature of previous paragraph to be safe, when the relevant identifier expression refers to a global variable, or to certain local slots, mutlock is set on that slot for the execution duration of the relevant type case block, for mutation through other means than using the identifier within that block. Also, you can <em>only</em> refer to it as downcasted within such a block.</p>
+<p>The comfortability feature might be expanded to work for lvalues in general, in the future. Or not. No, because array indexing may not give the same values for repeated occurrences.</p>
+<p>(NOTE: module specified identifier contra identifier, considered equal... or you may not refer to it both ways depending on how you imported it - YES)</p>
+<p>The compiler will require that all the possible cases of a variant-box type are represented in a contenttype statement. Usage tip: If you want the compiler to tell you when a new type case has been added to a variant-box type, so you can add new handling code for that case, you should <em>not</em> use a default case in your contenttype statements on that type. Use a default case only when there is a reasonable default thing to do (possibly nothing at all).</p>
+<p>(((The compiler does currently <em>not</em> require that all the possible type cases of an xorbox type are represented in a typeswitch statement, but this may change. In the case none of the cases match, execution resumes at the point after the typeswitch statement. (NOTE: return statements - maybe require this anyway... no, check it, and require a return statement afterwards otherwise, just like with an if statement. v0.1 that is.))))</p>
+<h2 id="if-statements"><a href="#if-statements"><span class="header-section-number">9.7</span> If statements</a></h2>
+<pre><code>    if_statement ::=
+        &quot;if&quot; expression block                                                                   // simple
+        | &quot;if&quot; expression block &quot;else&quot; block                                                    // full
+        | &quot;if&quot; expression block &quot;else&quot; if_statement                                             // nested</code></pre>
+<p><em>Example</em>:</p>
+<pre><code>    if 9 &gt; 4 :
+        go_bananas()
+    ; else if true :
+        go_cucumbers()
+    ; else :
+        remain_silent()
+        print_all_files()
+    ;
+</code></pre>
+<p>Parentheses around the test expression are optional.</p>
+<h2 id="loop-statements"><a href="#loop-statements"><span class="header-section-number">9.8</span> Loop statements</a></h2>
+<pre><code>    loop_statement ::=
+        &quot;loop&quot; [&quot;label&quot; identifier] block</code></pre>
+<p>An infinite loop. Use a break statement or a return statement to break out of the loop, or a continue statement to go to the next cycle of the loop. A label can optionally be provided.</p>
+<h2 id="for-statements"><a href="#for-statements"><span class="header-section-number">9.9</span> For statements</a></h2>
+<pre><code>    for_statement ::=
+        &quot;for&quot; [&quot;label&quot; identifier] variable_range block
+        | &quot;for&quot; [&quot;label&quot; identifier] [variable_range &#39;,&#39;] (array_iteration &#39;,&#39;)* array_iteration block
+
+    variable_range ::=
+        identifier &quot;&#39;&quot; type &#39;=&#39; expression (&quot;to&quot; | &quot;downto&quot;) expression
+
+    array_iteration ::=
+        identifier [&quot;&#39;&quot; type] &quot;over&quot; lvalue [&quot;indexfactor&quot; expression] [&quot;indexoffset&quot; expression]
+        | identifier [&quot;&#39;&quot; type] &quot;in&quot; expression [&quot;indexfactor&quot; expression] [&quot;indexoffset&quot; expression]</code></pre>
+<p><em>Examples:</em></p>
+<pre><code>    mu array &#39; arr f64 = [trash 200]
+
+    for it over array :
+        it = random() * 100.0
+    ;
+
+    mu array1 &#39; arr int = [1, 2, 3, 4, 5, 6, 7]
+    array2 &#39; arr int = [8, 9, 10, 11, 12, 13, 14]
+
+    for i &#39; int = 4 to len(array2) - 1,
+        it over array1 indexoffset -3,
+        jt in array2 
+    :
+        it = jt                    
+    ;
+
+    // array1 is now [1, 12, 13, 14, 5, 6, 7]</code></pre>
+<p>A for loop in Memtran iterates a finite number of times. An index variable (currently allowed types: int) can be provided into the for loop, whose value, for consecutive iterations of the for loop, will be set along a range of numbers given through a starting number and an end number (inclusive). Additionally, or alternatively, a number of arrays to be iterated through can be specified in the for loop, using either a construct with the keyword <code>over</code> or a construct with the keyword <code>in</code>.</p>
+<p>The thinking behind the Memtran for loop is that it should be constructed so as to allow the compiler to optimize away array bounds checking to some extent (or rather do them just once in the for loop head). This might not boost performance more than marginally actually, but writing the loop heads has been found to be sort of stimulating, a bit like Sudoku. But the for statement is sufficiently flexible that you can write in a more traditional way too, with just a variable range, and explicit array indexings inside the loop body.</p>
+<p>If no range is provided, the range is from 0 to <code>len</code> - 1 (inclusive) of the first array iterated through. And the implicit type of the implicit range variable is <code>int</code>. In that case, no indexfactor or indexoffset may be given for the first array iteration.</p>
+<p>The <code>over</code> construct should be used with arrays where you intend to modify (some or all of) their indices within the for loop. This construct will mutlock the slot holding the array, or whose subslot holds the array, against modification through other means than through the &quot;iteration alias&quot;, for the duration of the for loop. (The rules are (sort of) the same as for ref arguments/parameters). The identifier defines an alias that can be used both as an lvalue and as an expression within the for loop block, for referring to the current iterated through index of the array in question.</p>
+<p>The <code>in</code> construct should be used with arrays where you don't intend to modify any of their indices within the for loop. The identifier provided defines a variable (immutable for the duration of each iteration) that can be used as an expression within the for loop block, for referring to the current iterated through index of the array in questions. It should be the same type as the indice type of the array value to which the expression to the right of the keyword &quot;in&quot;, evaluates.</p>
+<p>Expressions in a for loop head are only evaluated once, prior to the the repeated execution of the for loop block.</p>
+<p>Break statements, continue statements and return statements may be used within the for loop block, having the expected effects on the execution of the for loop.</p>
+<p>A label for the for loop may optionally be declared, to be used with break statements and continue statements.</p>
+<p>Explicit type declaration for the alias/variable of the <code>over</code> and <code>in</code> constructs is optional in principle, but in certain cases that it cannot figure out, the compiler will tell you that it is needed.</p>
+<h3 id="using-for-loops-with-container-objects-in-general-i.e.-abstracted-types-that-the-user-or-standard-library-will-declare-note-for-v0.2"><a href="#using-for-loops-with-container-objects-in-general-i.e.-abstracted-types-that-the-user-or-standard-library-will-declare-note-for-v0.2"><span class="header-section-number">9.9.1</span> Using for loops with container objects in general (i.e. abstracted types that the user or standard library will declare) (NOTE: for v0.2)</a></h3>
+<p>The plan is:</p>
+<pre><code>    it over container_object
+
+    // where the container_object lvalue is of any type of the pattern container_type(t) 
+    // will require the interface:
+
+    fn boundscheck(c &#39; container_type(t), index &#39; int) &#39; bool
+    fn get_index(c &#39; container_type(t), index &#39; int) &#39; t
+    fn set_index(ref c &#39; container_type(t), index &#39; int, new_value &#39; t)
+</code></pre>
+<p>So it will only can work with containers with &quot;random access&quot;. For other cases, you will have to use a custom <code>loop</code> statement...</p>
+<p>Type declaring the iteration variable explicitly will probably be required quite often by the compiler.</p>
+<h2 id="break-statements"><a href="#break-statements"><span class="header-section-number">9.10</span> Break statements</a></h2>
+<pre><code>    break_statement ::=
+        &quot;break&quot; [&quot;label&quot; identifier] </code></pre>
+<h2 id="continue-statements"><a href="#continue-statements"><span class="header-section-number">9.11</span> Continue statements</a></h2>
+<pre><code>    continue_statement ::=
+        &quot;continue&quot; [&quot;label&quot; identifier] </code></pre>
+<h1 id="operations-that-set-the-rlock-flag-on-copy-on-write-values"><a href="#operations-that-set-the-rlock-flag-on-copy-on-write-values"><span class="header-section-number">10</span> Operations that set the <em>rlock</em> flag on copy-on-write values</a></h1>
+<p>(NOTE: Out-of-date but kept here until further)</p>
+<p>Runtime setting of the <em>rlock</em> flag on copy-on-write values, together with internal copying of their <em>content</em> part if their <em>content</em> part's <em>refcount</em> &gt; 1, are performed by for statement <code>over</code> construct (on the array lvalue, for the duration of the for loop), the <code>over</code> statement (on the struct lvalue, for its duration), and <code>ref</code> parameters (on their argument lvalue, for the duration of the function). The lock prevents wholesale modification of the value, and also prevents operations that increase the <em>refcount</em> of the value.</p>
+<p>What this means might be a bit hard to develop an intuition about. In practice, it means mostly that using the associated slot name (or subslot defining expression) as an expression is not possible, with the big exception that expressions referring to a subvalue of the locked value are still allowed under such a lock.</p>
+<p>Or should it be allowed, but with copying. Probably.</p>
+<p>modlock behöver inte en egen memory slot, kan vara flags på rlock. modlock sätts av ref argument function calls, for the duration of the function call, på alla överliggande copy-on-write memory structures.</p>
+<p>0 : no lock</p>
+<p>1 : rlock</p>
+<p>2 : modlock</p>
+<p>3 : rlock + modlock</p>
+<p>så</p>
+<pre><code>array1 : [] [] Int = #[#[1 2 3], #[4, 5, 6]]
+
+array2 : [] [] Int = array1 // structure sharing with array1
+
+fn strangeFunction(ref integer : Int) {
+    array1[0] = #[]
+    integer = 25
+}
+
+strangeFunction(ref array2[0][1])  // sätter modlock för de överliggande på lvalue:t -- detta går alltid att luska ut runtime, även för referenser
+                                   // samt skickar en pekare
+                        
+                                   // rad 1 i strangeFunction måste separera då modlock är satt på array1[0] memory area. Men hur högt måste separationen gå? 
+                                   // SVAR: Ända upp, vi börjar att söka efter modlock överst i strukturen. GOOD!!! 
+
+
+array1[0] = #[1, 2, 3] // resetting array1[0]
+
+array2 = array1
+
+strangeFunction(ref array1[0][1]) // runtime error på första raden i strangeFunction -- &quot;array is modlocked&quot;
+</code></pre>
+<p>Om vi ska kunna sätta någe modlock måste vi separera. SVAR: Vi sätter modlock på alla överliggande. Om modlock är satt måste refcount-increasing or modifying operations separera först. GOOD!!!!!!!</p>
+<p>Hur vet man om modlock ska leda till runtime error eller separation?</p>
+<p>If refcount &gt; 1, separera. ? Så första raden i strangeFunction i första anropet encounters an array with modlock and refcount == 2.</p>
+<p>Steg 1. Separera översta:</p>
+<pre><code>    array1 ---&gt; refcount: 1 [o, o]
+                             |  \---------------------------------
+                             v                                   v
+                            refcount: 2 [1, 2, 3] modlocked      refcount: 2 [4, 5, 6]
+                             ^                                   ^
+                             |   /--------------------------------
+    array2 ---&gt; refcount: 1 [o, o] modlocked           
+
+Steg 2. Funkar inte. Modlock måste sitta på pekaren/sloten. 
+
+</code></pre>
+<p>Alltså vad vi vill göra är att eliminate structure sharing lokalt. Så separera lokalt. Vid anropet av strangeFunction:</p>
+<pre><code>Steg 0.
+
+array1 ----&gt; refcount: 2 [o, o]
+          ----^           |  \--------&gt; refcount: 1 [4, 5, 6]
+         /                v
+array2 -/                 refcount: 1 [1, 2, 3]
+</code></pre>
+<p>Vi måste separera ända upp som första steg. Vilket är önskat, då ref-parametrar ska användas endast vid modifikation. Så sätt rlock och separera. Sätt sedan modlock på översta cow-värde. Skicka sedan en pekare.</p>
+<h1 id="precedence-rules"><a href="#precedence-rules"><span class="header-section-number">11</span> Precedence rules</a></h1>
+<p>Operations with precedence (having a preceding, i.e. lesser number, in the below lists) are evaluated first, or &quot;bind tighter,&quot; so to speak.</p>
+<h2 id="precedence-order-for-types"><a href="#precedence-order-for-types"><span class="header-section-number">11.1</span> Precedence order for types</a></h2>
+<ol style="list-style-type: decimal">
+<li>function types, struct types, parentheses</li>
+<li>Parametrized types with their argument lists (NOTE: Must this be a separate level? I don't remember my thinking here...)</li>
+<li>Array type constructions.<br /></li>
+<li>The variant-box type constructor <code>/</code>. This infix operator does not associate, but rather several variant-box type constructors on the same &quot;evaluation order level&quot; construct one single variant-box type.</li>
+</ol>
+<h2 id="precedence-order-for-expressions"><a href="#precedence-order-for-expressions"><span class="header-section-number">11.2</span> Precedence order for expressions</a></h2>
+<ol style="list-style-type: decimal">
+<li>These prefix expressions: parentheses, array expression, struct expression, prefix function call, module specified identifier expression with <code>..</code>, IF expressions, SWITCH expressions, CONTENTTYPE expressions.</li>
+<li>Postfix operations: struct indexing dot notation; the brackets of an array indexing. The constructions <code>'' &lt;type&gt;</code>, and <code>... &lt;type&gt;</code>, are also considered as postfix operations on par with these.<br /></li>
+<li>These prefix operations: <code>! -</code></li>
+<li>These infix operations: <code>* / %</code></li>
+<li>These infix operations: <code>+ -</code></li>
+<li>Infix function calls using backticks</li>
+<li>These infix operations: <code>&lt; &gt; &lt;= &gt;= != ==</code></li>
+<li>These infix operations: <code>&amp;&amp; ||</code></li>
+</ol>
+<p>Given equal precedence, all expression infix operations associate to the left.</p>
+<h1 id="overloaded-functions-and-type-inference"><a href="#overloaded-functions-and-type-inference"><span class="header-section-number">12</span> Overloaded functions and type inference</a></h1>
+<p>Due to syntactically implicit xorbox type upcasting, if the context where the expression is found does not provide further information, any expression that could be of type <em>T</em> could in principle as well be of any xorbox type having <em>T</em> as one of its type cases. But type inference will always prefer to infer <em>T</em> in these cases -- i.e. unless something in the context necessitates inferring an xorbox type. (NOTE: This is sort of wrongly described. Or not.)</p>
+<p>Two functions defined with the same name (and in the same context/namespace (NOTE: unclear/erratic description)) must differ in their argument type list. They cannot differ only in their return types.</p>
+<p>Functions can be overloaded on ref arg versus normal arg. On the other hand, when it comes to <code>mu</code> arg, versus <code>construand</code> arg, versus <code>mu construand</code> arg, versus normal arg without any such annotations, whereas such param annotations <em>do</em> affect function type identity, they cannot be overloaded on, since they are not specified in function call syntax.</p>
+<p>In the case where two functions with the same name are defined, such that they differ only in one of their argument types, in the way that that argument type is a type <em>A</em> for the first function, and an xorbox type <em>A</em> <code>\</code> <em>B</em> for the second function, the compiler will resolve a call to the function with an argument of type <em>A</em> so that the second function (with the xorbox type argument) is called. This is supposed to be somewhat useful for the technique exemplified in &quot;extensible_animals.cip&quot; in the examples folder. (NOTE: This may definitely change.)</p>
+<p>You may even overload a function name like this:</p>
+<pre><code>    fn myFunction(A \ B) {...}
+    fn myFunction(A \ C) {...}
+</code></pre>
+<p>But in that case, if you then proceed to call one of those functions with an argument of type <em>A</em>, the compiler will protest.</p>
+<p>Well, basically actually, currently function overloading is in a sense maximalistic, in that the compiler will not protest any declared over-overloaded function signatures per se, but will only complain when it cannot resolve an actual function call.</p>
+<p>If the arguments to a call to an overloaded function contain integer literals or floating point number literals, the exact types for those literals will be guessed by the compiler in the order specified in Chapter X &quot;Number literals&quot;, combinatorially for all ambiguous arguments, until a matching function is found.</p>
+<p>So, for a function call with two integer literal arguments, the compiler will make the following guesses for the integer literals, in order:</p>
+<pre><code>    Int, Int
+    Int, UInt
+    Int, I64
+    Int, U64
+    Int, I32
+    Int, U32
+    Int, I16
+    Int, U16
+    Int, I8
+    Int, U8
+    UInt, Int
+    UInt, UInt
+    UInt, I64
+    etc.</code></pre>
+<p>(NOTE: Order given should be changed in both chapters, to something like: Int, I64, I32, I16, I8, UInt, U64, U32, U16, U8.)</p>
+<p>But this is only in case the type signature of the function cannot be found out &quot;the other way around&quot;, i.e. starting from the root of the expression containing the function call (as part of an assignment statement or an argument passing), or from a type clarified expression surrounding the function call at some level of the expression containing it.</p>
+<p>If the arguments to an overloaded function are array expressions, the current compiler will, in a few cases, ask you to specify the exact type of those expressions by embedding them in a type clarified statement, even in some cases where a type deduction would be theoretically possible.</p>
+<h1 id="generics"><a href="#generics"><span class="header-section-number">13</span> Generics</a></h1>
+<p>For now, this is what we have:</p>
+<h2 id="parametrized-types-1"><a href="#parametrized-types-1"><span class="header-section-number">13.1</span> Parametrized types</a></h2>
+<p>The identifier before the parentheses of a parametrized type name may not clash with the name of a named non-parametrized type. All the parameter names must be different, and be used somewhere in the definition of the type. No overloading of type names is allowed. (NOTE: The last statement belongs somewhere else in the manual.)</p>
+<p>It is currently only possible to parametrize over types, not over other things that make up types, such as struct tags or struct fields. But this may change. Or, alternatively, those properties of the type system may have to go. Or something else.</p>
+<p>The built in composite types can be considered as parametrized on the composing types that are in their definition, in that order. See the sorting function in the next subchapter.</p>
+<h2 id="function-templates"><a href="#function-templates"><span class="header-section-number">13.2</span> Function templates</a></h2>
+<p>Function template definitions are currently only allowed in the global scope. (NOTE: though we will see about that soon...)</p>
+<p>The compiler will compile different implementations for every call of the function template that has a distinct argument type signature. Such individual implementations can also be referred to as function type values. (NOTE: hard to implement?) (NOTE 2: you will often need a type clarification)</p>
+<p>If a function template is defined in a program or module, but not called with some concrete type arguments, it will only be parsed by the compiler, and partially semantically validated, but not completely semantically validated.</p>
+<p>You may overload function template names (possibly mixed with regular functions overloading the same name). But there may happen clashes when instantiating them, which will make the compiler complain at that point.</p>
+<p>A template may call functions not yet defined in the module it is in. In order to give a hint about how to write rather abstract code in Memtran, below is given as example an implementation of insertion sort for any sequence type. Note that an interface consisting of a number of required functions on the types S(T) and T are specified in a comment, and these function names are then &quot;forward called&quot;.</p>
+<pre><code>    /** This template forward requires the following interface for the types S(T) and T:
+        fn greaterThan(a : T, b : T =&gt; Bool)
+        fn getIndex(arr : S(T), index : Int =&gt; T)
+        fn setIndex(ref arr : S(T), index : Int, elem : T)
+        fn size(arr : S(T) =&gt; Int)
+    */
+    fn(S, T) seqInsertionSort(ref seq : S(T)) {               
+        
+        for i : Int = 1 to size(seq) - 1 {
+            mu j : Int = i
+            loop {
+                if !((j &gt; 0) &amp;&amp; (getIndex(seq, j - 1) `greaterThan?` getIndex(seq, j))) {
+                    break                                 
+                }
+                temp : T = getIndex(seq, j)
+                setIndex(ref seq, j getIndex(seq, j - 1))
+                setIndex(ref seq, j - 1, temp)
+                j -= 1
+            }
+        }
+    }
+
+    /* ----- using the template function (typically in another file) --------- */
+
+    // Note that this would be more useful (provided you find things like this useful at all) for some other, more complex, abstracted type, than for the 
+    // regular dynamic array used here.
+
+    fn greaterThan(a : F32, b : F32 =&gt; Bool) {
+        return a &gt; b
+    }
+
+    fn getIndex(array : [] F32, index : Int =&gt; F32) {
+        return array[index]
+    }
+
+    fn setIndex(ref array : [] F32, index : Int, element : F32) {
+        array[index] = element
+    }
+
+    fn size(array : [] F32 =&gt; UInt) {
+        return array len
+    }
+
+    mu myArray : [] F32 = #[1.2, 7.8, 4.5, 3.4, 6.8, 2.3, 0.2, 5.5, 3.3, 2.8]
+
+    seqInsertionSort(ref myArray)
+    </code></pre>
+<p>Mostly for the reason of avoiding scary-looking notation, function template forward calls are not marked-out syntactically, but the compiler will simply mark function calls inside a function template, as forward called, whenever they aren't defined as per the module the function template is in. The gotcha is that if you have defined a private function with a matching type signature, that function will be preferred to a forward call. (In the case you have defined a non-private matching function, the same thing happens, but at least there will be name conflict when the user of the module is trying to define a function of the same signature.)</p>
+<p>Further, things like using parametrized xorbox types as the types of the function parameters of a function template may sometime create problems:</p>
+<pre><code>fn(A, B) test(foo : A \ B) {
+    typeswitch foo case A {
+        printUTF8(&quot;Apple&quot;)
+    } case B {
+        printUTF8(&quot;Banana&quot;)
+    }
+}
+
+bar : [] F64 = #[1.2]
+
+test(bar) // compiler will say stop, I don&#39;t know which xorbox type it is supposed to be</code></pre>
+<h3 id="type-name-capture"><a href="#type-name-capture"><span class="header-section-number">13.2.1</span> Type name capture</a></h3>
+<p>Since types may currently only be declared in the global scope, may not be prefiximported, and may not be private to a module, type name capture in function templates should not be possible.</p>
+<h1 id="the-construand-keyword"><a href="#the-construand-keyword"><span class="header-section-number">14</span> The <code>construand</code> keyword</a></h1>
+<p>The &quot;construand&quot; keyword is strictly for optimization purposes.</p>
+<p>Using &quot;construand&quot; together with &quot;mu&quot; makes no difference implementationwise, but, for completeness, it can still be provided in such cases, if you wish so. Also, and perhaps more importantly, &quot;construand&quot; does only make an implementational difference when used with parameters that are of array type, or whose type contains array types.</p>
+<p>You should or may use this keyword when the value held by the parameter is used simply in construction of a data structure that has that value as a constituting part, which in other terms means either:</p>
+<ol style="list-style-type: decimal">
+<li>The value held by the parameter is passed on to another function as a &quot;construand&quot; argument</li>
+<li>The value is used as a subvalue of an array expression or a struct expression</li>
+<li>The value is given to an &quot;implicit xorbox conversion&quot; (i.e. that which happens when you assign a value of type A to a slot of type A | B).</li>
+</ol>
+<p>It is allowed to use a construand parameter in construction twice or more times. TEST THIS OUT. Implementationwise, <code>construand</code> is just a signal to the compiler that the parameter should own the memory it points to. And this in turn sometimes enables ownership transfer to such a parameter.</p>
+<p>It would probably be possible for the compiler to do a global optimization pass in order to find out the information provided by the &quot;construand&quot; keyword, but since we would like separate compilation to be simple and fast, this optimization keyword must be provided manually by the programmer.</p>
+<h1 id="implementation-of-memtrans-assign-by-value-and-pass-by-valuepass-by-reference-semantics----tables"><a href="#implementation-of-memtrans-assign-by-value-and-pass-by-valuepass-by-reference-semantics----tables"><span class="header-section-number">15</span> Implementation of Memtran's assign-by-value and pass-by-value/pass-by-reference semantics -- tables</a></h1>
+<p>Please see the document &quot;cimmpl_memory_management_details.txt&quot; in the &quot;src&quot; directory.</p>
+<h1 id="module-system"><a href="#module-system"><span class="header-section-number">16</span> Module system</a></h1>
+<pre><code>    module_specified_identifier ::=
+        identifier &quot;::&quot; identifier</code></pre>
+<p>Compiling a &quot;.cim&quot; module file produces both an object file, and a &quot;.scim&quot; file, which latter is more or less an automatically generated header file. It is the &quot;.scim&quot; file that should be named in an import/prefiximport statement, in order to import the module, not the &quot;.cim&quot; file.</p>
+<p>(NOTE: module specified identifier contra identifier, considered equal... or you may not refer to it both ways depending on how you imported it - YES)</p>
+<p>There is import and prefiximport, that's it. See previous statement too. Types declared in a prefiximported module file are never prefiximported though, but always imported directly.</p>
+<p>If you want to know the type definition of an imported type (and you don't have access to its definition source code), abstracted or not, try to alias it to any type with <code>as</code>, and the compiler will print an error message telling you the type definition, or let it pass, in which latter case your guess was right. (This paragraph is out of date.)</p>
+<h1 id="local-functions"><a href="#local-functions"><span class="header-section-number">17</span> Local functions</a></h1>
+<p>Local functions are permitted. In addition to being able to access global variables and functions, local functions can also access local slots that are defined (above them), and functions that are defined, within any containing block. But note that Memtran environments are not true closures, as per the Lisp tradition. Take the following Scheme example:</p>
+<pre><code>(define (test) 
+    (let ((counter 0))
+        (lambda () (inc! counter) (print counter))))
+
+(let ((counter-function (test)))
+    (counter-function)      ; prints 1
+    (counter-function)      ; prints 2
+    (counter-function))     ; prints 3
+</code></pre>
+<p>(NOTE: check the details of this Scheme example with an actual Scheme implementation!)</p>
+<p>Doing a similar thing in Memtran will trigger a compile time error:</p>
+<pre><code>fn test(=&gt; Fn()) {
+    mu counter : Int = 0
+    fn incAndPrint() {
+        counter += 1
+        print(counter)
+    }
+    return incAndPrint  // disallowed by the compiler
+}
+
+counterFunction : Fn() = test()
+counterFunction()        
+counterFunction()
+counterFunction()
+</code></pre>
+<p>Local functions can be used as an aid to structured programming, and also for certain kinds of event handling and similar. But several aspects of their implementation make them slower than global functions, so be aware of that. If you just want to restrict access to certain functions, you can use the <code>private</code> functionality of the module system.</p>
+<h1 id="evaluation-order"><a href="#evaluation-order"><span class="header-section-number">18</span> Evaluation order</a></h1>
+<p>Somewhat unusually, evaluation order of the expressions inside Memtran statements, is defined like this:</p>
+<p>Let the <em>level</em> of a function call expression (in the sense, here, of expressions having explicit (prefix or infix) function call syntax -- operator expressions are not included!), inside a Memtran statement, be equal to</p>
+<ul>
+<li>n + 1 if it is part of a non-function-call-expression argument to a function call expression of level n</li>
+<li>1 otherwise</li>
+</ul>
+<p>Then the evaluation order for the expressions in the statement is as follows:</p>
+<p>For levels m downto 1, where m is the highest found level within the statement, first all function calls of the level are evaluated, in an <em>unspecified</em> order; then all other expressions needed to supply function calls of level level-1 with arguments, are evaluated.</p>
+<p>So evaluation order in Memtran is defined (although with some undefined aspects to it) &quot;per statement&quot;, not &quot;per expression&quot;.</p>
+<p>The evaluation order procedure is like it is for technical reasons of implementation, so as to avoid segmentation errors and the like, i.e. due to premeditated sharing of resources that are subsequently modified by side-effecting function call expressions evaluated.</p>
+<p>Note: expressions inside other statements inside a block forming part of a statement, do not participate in the evaluation procedure discussed here.</p>
+<h1 id="future-extensions"><a href="#future-extensions"><span class="header-section-number">19</span> Future extensions</a></h1>
+<h2 id="c-interoperability"><a href="#c-interoperability"><span class="header-section-number">19.1</span> C interoperability</a></h2>
+<p>cInterface::CChar cInterface::CUChar cInterface::CShort cInterface::CUShort cInterface::CInt cInterface::CUInt cInterface::CLong cInterface::CULong cInterface::CLongLong cInterface::CULongLong cInterface::CFloat cInterface::CDouble cInterface::CLongDouble</p>
+<p>fn toCChar(I8) =&gt; CChar fn toCUChar(U8) =&gt; CUChar fn toCShort(I16) =&gt; CShort etc. fn(T) arrayToCPointer(ref [?] T) =&gt; CVoidPointer // e.d.</p>
+<p>Use separation statements. (NOTE: We will see about that!)</p>
+<p>New musings:</p>
+<pre><code>&quot;clibrary.cim&quot;:
+
+csignature addToDatabase(construand str : [] U8, Int length, Int totalMem)
+
+
+
+&quot;clibrary.h&quot;:
+
+#if
+    (lång typdefinitions-fixning för olika arkitekturer)
+#endif
+
+
+void addToDatabase(CimmplU8Ptr str, CimmplInt length, CimmplInt totalMem) {         
+
+
+}</code></pre>
+<h2 id="concurrency"><a href="#concurrency"><span class="header-section-number">19.2</span> Concurrency</a></h2>
+<p>It is speculated that Software Transactional Memory would be a nice fit for Memtran, for the following reasons:</p>
+<ul>
+<li>Due to the pass-by-value, assign-by-value semantics, there wouldn't be a problem with &quot;leakage&quot; of data between slots designated as part of the Software Transactional Memory scheme, and slots not thus designated.</li>
+<li>The semantics of so called &quot;atomic&quot; code blocks together with usage of exception handling facilities seems to be a hard nut to handle in a clean way. But Memtran has no exception handling, using multiple return values for most error handling.</li>
+<li>(NOTE: more?)</li>
+</ul>
+<p>But we will see about such things, and it is all for the remote future.</p>
+<h2 id="switch-statement"><a href="#switch-statement"><span class="header-section-number">19.3</span> Switch statement</a></h2>
+<h1 id="built-in-functions"><a href="#built-in-functions"><span class="header-section-number">20</span> Built-in functions</a></h1>
+<p>(NOTE: work in progress)</p>
+<p>Below will be given function signatures for the built-in functions as if they were functions defined in Memtran itself.</p>
+<h2 id="array-functions"><a href="#array-functions"><span class="header-section-number">20.1</span> Array functions</a></h2>
+<pre><code>fn(T) addLast(ref array : [] T, construand element : T)
+fn(T) addLast(construand array : [] T, construand element : T =&gt; [] T)      // Functional variant
+fn(T) append(ref array : [] T, array2 : [] T)                               // (NOTE: array2 is not construand, and should not...)
+fn(T) append(construand array : [] T, array2 : [] T)                        // Functional variant 
+fn(T) len(array : [] T =&gt; Int)
+fn(T) removeLast(ref array : [] T, numberOfElementsToRemove : Int)    /* simply removes all elements if len(array) &lt; numberOfElementsToRemove;
+                                                                        simply removes nothing if numberOfElementsToRemove is &lt;= 0    */
+fn(T) removeLast(construand array : [] T, numberOfElementsToRemove : Int =&gt; [] T)   // Functional variant
+                                                                       </code></pre>
+<h2 id="conversion"><a href="#conversion"><span class="header-section-number">20.2</span> Conversion</a></h2>
+<pre><code>fn toF32(f : F64 =&gt; F32)
+fn toF32(i : I8 =&gt; F32)                 // NOT YET IMPLEMENTED
+fn toF32(i : I16 =&gt; F32)                // NOT YET IMPLEMENTED
+fn toF32(i : I32 =&gt; F32)                // NOT YET IMPLEMENTED
+fn toF32(i : I64 =&gt; F32)                // NOT YET IMPLEMENTED
+fn toF32(i : Int =&gt; F32)
+fn toF32(u : U8 =&gt; F32)
+fn toF32(u : U16 =&gt; F32)                // NOT YET IMPLEMENTED
+fn toF32(u : U32 =&gt; F32)                // NOT YET IMPLEMENTED
+fn toF32(u : U64 =&gt; F32)                // NOT YET IMPLEMENTED
+fn toF32(u : UInt =&gt; F32)               // NOT YET IMPLEMENTED
+fn toF64(f : F32 =&gt; F64)
+fn toF64(i : I8 =&gt; F64)                 // NOT YET IMPLEMENTED
+fn toF64(i : I16 =&gt; F64)                // NOT YET IMPLEMENTED
+fn toF64(i : I32 =&gt; F64)                // NOT YET IMPLEMENTED    
+fn toF64(i : I64 =&gt; F64)                // NOT YET IMPLEMENTED
+fn toF64(i : Int =&gt; F64)
+fn toF64(u : U8 =&gt; F64)                 
+fn toF64(u : U16 =&gt; F64)                // NOT YET IMPLEMENTED
+fn toF64(u : U32 =&gt; F64)                // NOT YET IMPLEMENTED
+fn toF64(u : U64 =&gt; F64)                // NOT YET IMPLEMENTED
+fn toF64(u : UInt =&gt; F64)               // NOT YET IMPLEMENTED
+fn toI8(u : U8 =&gt; I8, Bool)             // NOT YET IMPLEMENTED
+fn toI8(u : U16 =&gt; I8, Bool)            // NOT YET IMPLEMENTED
+fn toI8(u : U32 =&gt; I8, Bool)            // NOT YET IMPLEMENTED
+fn toI8(u : U64 =&gt; I8, Bool)            // NOT YET IMPLEMENTED
+fn toI8(u : UInt =&gt; I8, Bool)           // NOT YET IMPLEMENTED
+fn toI8(i : I16 =&gt; I8, Bool)            // NOT YET IMPLEMENTED
+fn toI8(i : I32 =&gt; I8, Bool)            // NOT YET IMPLEMENTED
+fn toI8(i : I64 =&gt; I8, Bool)            // NOT YET IMPLEMENTED
+fn toI8(i : Int =&gt; I8, Bool)            // NOT YET IMPLEMENTED
+fn toI16(u : U8 =&gt; I16)                 // NOT YET IMPLEMENTED
+fn toI16(u : U16 =&gt; I16, Bool)          // NOT YET IMPLEMENTED
+fn toI16(u : U32 =&gt; I16, Bool)          // NOT YET IMPLEMENTED
+fn toI16(u : U64 =&gt; I16, Bool)          // NOT YET IMPLEMENTED    
+fn toI16(u : UInt =&gt; I16, Bool)         // NOT YET IMPLEMENTED
+fn toI16(i : I8 =&gt; I16)                 // NOT YET IMPLEMENTED
+fn toI16(i : I32 =&gt; I16, Bool)          // NOT YET IMPLEMENTED
+fn toI16(i : I64 =&gt; I16, Bool)          // NOT YET IMPLEMENTED
+fn toI16(i : Int =&gt; I16, Bool)          // NOT YET IMPLEMENTED    
+fn toI32(u : U8 =&gt; I32)                 // NOT YET IMPLEMENTED
+fn toI32(u : U16 =&gt; I32)                // NOT YET IMPLEMENTED
+fn toI32(u : U32 =&gt; I32, Bool)          // NOT YET IMPLEMENTED
+fn toI32(u : U64 =&gt; I32, Bool)          // NOT YET IMPLEMENTED
+fn toI32(u : UInt =&gt; I32, Bool)         // NOT YET IMPLEMENTED
+fn toI32(i : I8 =&gt; I32)                 // NOT YET IMPLEMENTED
+fn toI32(i : I16 =&gt; I32)                // NOT YET IMPLEMENTED
+fn toI32(i : I64 =&gt; I32, Bool)          // NOT YET IMPLEMENTED    
+fn toI32(i : Int =&gt; I32, Bool)          // NOT YET IMPLEMENTED
+fn toI64(u : U8 =&gt; I64)                 // NOT YET IMPLEMENTED
+fn toI64(u : U16 =&gt; I64)                // NOT YET IMPLEMENTED
+fn toI64(u : U32 =&gt; I64)                // NOT YET IMPLEMENTED
+fn toI64(u : U64 =&gt; I64, Bool)          // NOT YET IMPLEMENTED    
+fn toI64(u : UInt =&gt; I64, Bool)         // NOT YET IMPLEMENTED
+fn toI64(i : I8 =&gt; I64)                 // NOT YET IMPLEMENTED
+fn toI64(i : I16 =&gt; I64)                // NOT YET IMPLEMENTED
+fn toI64(i : I32 =&gt; I64)                // NOT YET IMPLEMENTED    
+fn toI64(i : Int =&gt; I64, Bool)          // NOT YET IMPLEMENTED
+fn toInt(u : U8 =&gt; Int, Bool)
+fn toInt(u : U16 =&gt; Int, Bool)          // NOT YET IMPLEMENTED
+fn toInt(u : U32 =&gt; Int, Bool)          // NOT YET IMPLEMENTED
+fn toInt(u : U64 =&gt; Int, Bool)          // NOT YET IMPLEMENTED
+fn toInt(u : UInt =&gt; Int, Bool)         // NOT YET IMPLEMENTED
+fn toInt(i : I8 =&gt; Int, Bool)           // NOT YET IMPLEMENTED
+fn toInt(i : I16 =&gt; Int, Bool)          // NOT YET IMPLEMENTED
+fn toInt(i : I32 =&gt; Int, Bool)          // NOT YET IMPLEMENTED
+fn toInt(i : I64 =&gt; Int, Bool)          // NOT YET IMPLEMENTED
+fn toU8(u : U16 =&gt; U8, Bool)            // NOT YET IMPLEMENTED
+fn toU8(u : U32 =&gt; U8, Bool)            // NOT YET IMPLEMENTED
+fn toU8(u : U64 =&gt; U8, Bool)            // NOT YET IMPLEMENTED
+fn toU8(u : UInt =&gt; U8, Bool)           // NOT YET IMPLEMENTED
+fn toU8(i : I8 =&gt; U8, Bool)             // NOT YET IMPLEMENTED
+fn toU8(i : I16 =&gt; U8, Bool)            // NOT YET IMPLEMENTED
+fn toU8(i : I32 =&gt; U8, Bool)            // NOT YET IMPLEMENTED    
+fn toU8(i : I64 =&gt; U8, Bool)            // NOT YET IMPLEMENTED    
+fn toU8(i : Int =&gt; U8, Bool)    
+fn toU16(u : U8 =&gt; U16)                 // NOT YET IMPLEMENTED
+fn toU16(u : U32 =&gt; U16, Bool)          // NOT YET IMPLEMENTED
+fn toU16(u : U64 =&gt; U16, Bool)          // NOT YET IMPLEMENTED
+fn toU16(u : UInt =&gt; U16, Bool)         // NOT YET IMPLEMENTED
+fn toU16(i : I8 =&gt; U16, Bool)           // NOT YET IMPLEMENTED
+fn toU16(i : I16 =&gt; U16, Bool)          // NOT YET IMPLEMENTED
+fn toU16(i : I32 =&gt; U16, Bool)          // NOT YET IMPLEMENTED
+fn toU16(i : I64 =&gt; U16, Bool)          // NOT YET IMPLEMENTED    
+fn toU16(i : Int =&gt; U16, Bool)          // NOT YET IMPLEMENTED
+fn toU32(u : U8 =&gt; U32)                 // NOT YET IMPLEMENTED
+fn toU32(u : U16 =&gt; U32)                // NOT YET IMPLEMENTED
+fn toU32(u : U64 =&gt; U32, Bool)          // NOT YET IMPLEMENTED
+fn toU32(u : UInt =&gt; U32, Bool)         // NOT YET IMPLEMENTED
+fn toU32(i : I8 =&gt; U32, Bool)           // NOT YET IMPLEMENTED
+fn toU32(i : I16 =&gt; U32, Bool)          // NOT YET IMPLEMENTED
+fn toU32(i : I32 =&gt; U32, Bool)          // NOT YET IMPLEMENTED
+fn toU32(i : I64 =&gt; U32, Bool)          // NOT YET IMPLEMENTED
+fn toU32(i : Int =&gt; U32, Bool)          // NOT YET IMPLEMENTED
+fn toU64(u : U8 =&gt; U64)                 // NOT YET IMPLEMENTED
+fn toU64(u : U16 =&gt; U64)                // NOT YET IMPLEMENTED
+fn toU64(u : U32 =&gt; U64)                // NOT YET IMPLEMENTED
+fn toU64(u : Uint =&gt; U64, Bool)         // NOT YET IMPLEMENTED
+fn toU64(i : I8 =&gt; U64, Bool)           // NOT YET IMPLEMENTED
+fn toU64(i : I16 =&gt; U64, Bool)          // NOT YET IMPLEMENTED
+fn toU64(i : I32 =&gt; U64, Bool)          // NOT YET IMPLEMENTED
+fn toU64(i : I64 =&gt; U64, Bool)          // NOT YET IMPLEMENTED
+fn toU64(i : Int =&gt; U64, Bool)          // NOT YET IMPLEMENTED
+fn toUInt(u : U8 =&gt; UInt, Bool)         // NOT YET IMPLEMENTED
+fn toUInt(u : U16 =&gt; UInt, Bool)        // NOT YET IMPLEMENTED    
+fn toUInt(u : U32 =&gt; UInt, Bool)        // NOT YET IMPLEMENTED    
+fn toUInt(u : U64 =&gt; UInt, Bool)        // NOT YET IMPLEMENTED    
+fn toUInt(i : I8 =&gt; UInt, Bool)         // NOT YET IMPLEMENTED
+fn toUInt(i : I16 =&gt; UInt, Bool)        // NOT YET IMPLEMENTED
+fn toUInt(i : I32 =&gt; UInt, Bool)        // NOT YET IMPLEMENTED    
+fn toUInt(i : I64 =&gt; UInt, Bool)        // NOT YET IMPLEMENTED
+fn toUInt(i : Int =&gt; UInt, Bool)        // NOT YET IMPLEMENTED</code></pre>
+<h2 id="language-error-handling"><a href="#language-error-handling"><span class="header-section-number">20.3</span> Language error handling</a></h2>
+<pre><code>fn runtimeLanguageErrorStatus(=&gt; Int)         // Can be used when the &#39;--recovermode&#39; compilerflag is set. Reports the last occurred language error: 
+                                              //    0 -- No errors
+                                              //    1 -- Array indexing expression index out of bonds
+                                              //    2 -- for loop head array index out of bonds  
+                                              //    3 -- Mutlock invoked         (Mutlock invocation is always fatal, though, in this version, so this will never be reported.)
+                                              //    4 -- Repeated value array expression of desired length &lt; 0
+                                              //    5 -- Array expression with no initialization of desired length &lt; 0
+                                              //    6 -- Xorbox downcast failure
+                                              //    7 -- assignment lvalue array indexing out of bonds
+                                              //    8 -- assignment lvalue xorbox downcast failure
+                                              //    9 -- for loop &quot;over&quot; construct lvalue array indexing out of bonds
+                                              //   10 -- for loop &quot;over&quot; construct lvalue xorbox downcast failure
+                                              //   11 -- ref argument lvalue array indexing out of bonds             (FATAL? try it out...)
+                                              //   12 -- ref argument lvalue xorbox downcast failure                 (FATAL? try it out...)
+                                              //   13 -- slimmed conversion function conversion failure (for v0.2) NOT FITTING HERE
+                                              // The act of calling this function will reset the status to 0 -- No errors. </code></pre>
+<h2 id="memory-information"><a href="#memory-information"><span class="header-section-number">20.4</span> Memory information</a></h2>
+<pre><code>fn availableMemory(=&gt; Int)
+fn totalMemory(=&gt; Int)
+fn usedMemory(=&gt; Int)</code></pre>
+<h2 id="printing-to-standard-output"><a href="#printing-to-standard-output"><span class="header-section-number">20.5</span> Printing to standard output</a></h2>
+<pre><code>fn print(n : Nil) 
+fn print(b : Bool)          // move to stdlib later, but needed initially (before we have byte arrays)
+fn print(i : I8)            // NOT YET IMPLEMENTED
+fn print(i : I16)           // NOT YET IMPLEMENTED
+fn print(i : I32)           // NOT YET IMPLEMENTED
+fn print(i : I64)           // NOT YET IMPLEMENTED
+fn print(i : Int)
+fn print(u : U8)            
+fn print(u : U16)           // NOT YET IMPLEMENTED
+fn print(u : U32)           // NOT YET IMPLEMENTED
+fn print(u : U64)           // NOT YET IMPLEMENTED
+fn print(u : UInt)          // NOT YET IMPLEMENTED
+fn print(f : F32)
+fn print(f : F64)
+fn printLn()</code></pre>
+<h2 id="other"><a href="#other"><span class="header-section-number">20.6</span> Other</a></h2>
+<pre><code>fn getArgs(=&gt; [] [] U8)
+
+fn printASCIIChar(c : U8)   // this will be moved to the &quot;ascii.cim&quot; standard library as soon as the C interface is completed
+fn printUTF8Internal(str : [] U8)  // this will be moved to the &quot;utf8.cim&quot; standard library as soon as the C interface is completed</code></pre>
+<h1 id="standard-library"><a href="#standard-library"><span class="header-section-number">21</span> Standard library</a></h1>
+<p>(NOTE: work in progress)</p>
+<h2 id="array.cim"><a href="#array.cim"><span class="header-section-number">21.1</span> array.cim</a></h2>
+<pre><code>fn(T) reverse(array : [] T =&gt; [] T)
+fn(T) reverse(ref array : [] T)
+fn(T) slice(array : [] T, startInclusive : Int, endExclusive : Int =&gt; [] T)
+fn(T) setSlice(ref array : [] T, start : Int, values : [] T)
+fn(T) print(array : [] T)                                                   // forward-calls this informal interface: fn print(something : T)
+</code></pre>
+<h2 id="ascii.cim"><a href="#ascii.cim"><span class="header-section-number">21.2</span> ascii.cim</a></h2>
+<pre><code>fn equalsASCII(str1 : [] U8, str2 : [] U8 =&gt; Bool)
+fn printASCII(str : [] U8)
+fn promptASCII(=&gt; [] U8)
+fn toIntASCII(str : [] U8 =&gt; Int, Bool)
+fn toF64ASCII(str : [] U8 =&gt; F64, Bool)
+fn toASCII(i : Int =&gt; [] U8)
+fn toASCII(f : F64 =&gt; [] U8)  </code></pre>
+<h2 id="random.cim"><a href="#random.cim"><span class="header-section-number">21.3</span> random.cim</a></h2>
+<pre><code>fn random(=&gt; F64)        // Observe that this pseudo-random number generator is super-simplistic at the moment 
+                         // and should not be used for anything serious. Also, there is no randomize functionality...</code></pre>
+<h2 id="utf8.cim"><a href="#utf8.cim"><span class="header-section-number">21.4</span> utf8.cim</a></h2>
+<pre><code>fn equalsUTF8(str1 : [] U8, str2 : [] U8 =&gt; Bool)
+fn printUTF8(str : [] U8)
+fn promptUTF8(=&gt; [] U8)
+fn substringUTF8(str : [] U8, startInclusive : Int, endExclusive : Int =&gt; [] U8) 
+fn toIntUTF8(str : [] U8 =&gt; Int, Bool)
+fn toF64UTF8(str : [] U8 =&gt; F64, Bool)</code></pre>
+<h2 id="util.cim"><a href="#util.cim"><span class="header-section-number">21.5</span> util.cim</a></h2>
+<pre><code>inline fn(T) swap(ref a : T, ref b : T) </code></pre>
+</body>
+</html>

@@ -1,0 +1,43 @@
+fn arne(construand f ' int, mu g ' arr int) ' int :
+    fn bertrand() :
+        print_utf8("Hello")
+    ;
+
+    switch a case 3 :
+        fn lenny() ' int :
+        ;
+    ; default :
+        i = 19
+    ;
+;
+
+
+type dict = dict{entries ' arr arr u8}
+
+
+internal inline fn g() :
+    swap(ref a, ref b)
+;
+
+
+fn(t, u, v) memtest() :
+    j ' t = k
+    return
+;
+
+
+fn arne() ' int :
+    testing(a, b, c)
+;
+
+
+
+
+
+
+
+
+
+
+
+

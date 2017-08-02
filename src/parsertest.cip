@@ -1,0 +1,228 @@
+fn average(v'arr foo..bar(a, b, c))'f32:
+    sum'int=0
+    for it in v:
+        sum+=it        
+    ;
+    
+    return to_f32(sum)/to_f32(len(v))
+;
+
+
+heltalsvektor'arr int=[32,65,54,11, 10, 20, 42, 28, 12, 34]
+
+medelmatta = average(heltalsvektor) 
+
+print_utf8("Medel är ")
+print(medelmatta)
+println()
+
+|
+
+
+internal inline fn(t)test(a'arr monster{id'int data'arr f32},b'int)'arr t:
+    if a==nil{}:
+        return IF x..y...z''int~3 ELSE~4
+    ;else:
+        return y..z
+    ;
+
+    fn swaploop(ref a'int,ref b'int):
+        loop label bengt:
+            temp'int=monster{idd=35 data=[1,2,3]}
+            a=vbox/b\
+            b=temp[end-1]
+            loop:
+                if a:
+                    break label bengt
+                ;
+            ;
+        ;
+    ;
+
+    storetype q case arr f64/nil:
+        print(SWITCH a CASE 3~4 CASE 4~3 DEFAULT~0)
+    ;default:
+        exit(STORETYPE a CASE f64,nil~13)    
+    ;
+;
+
+
+type monster = monster{id ' int   data ' arr f32}
+
+
+
+
+f ' fn<int, int> = g
+
+
+
+
+fn(t) swap(ref a ' t, ref b ' t) :
+
+    loop label bengt :
+        temp ' t = a
+        a = b
+        b = temp
+
+    ;
+
+    swap(ref a, ref b)
+
+;
+
+
+
+
+for it ' arr int over a[36][x + i] indexfactor 3 indexoffset 35,
+    jt in google,
+    kt over a ... UInt indexfactor 377 + x 
+    
+:
+
+    mu internal a ' arr int, b, internal c ' f64 += foo(ref d, ref e, ref f)
+
+    storetype 3 + 4 case f64 :
+        
+
+    ; case nil, bool :
+        switch 99 * 11 case 3 :
+        ; case 4, 5, 6 :
+
+        ; default :
+
+        ;
+
+    ; default :
+    ;
+
+
+;
+
+
+
+
+
+
+
+
+get(modulissimo..bar(ref elephant, tiger), foo(a, b, c))
+
+
+
+continue label lenny
+
+
+// TEST COMMENT
+
+
+
+
+
+for it ' arr int over a[36][x + i] indexfactor 3 indexoffset 35,
+    jt in google,
+    kt over a ... uint indexfactor 377 + x
+:
+
+;
+
+
+
+
+loop label benny :
+
+;
+
+
+
+
+
+if f == 36.7 :
+
+
+; else :
+
+;
+
+
+
+
+return nil, 3 + 4
+
+
+internal inline fn(T) test(construand a : T, mu param : [] T => Nil, T) {
+    
+}
+
+
+
+
+
+a : [] F64
+
+
+
+ref elephant : Int
+
+
+
+
+
+switch 99 * 11 case 3 {
+} case 4, 5, 6 {
+
+} default {
+
+}
+
+
+
+
+contenttype 3 + 4 case F64 {
+} case Nil, Bool {
+} default {
+}
+
+
+
+
+
+
+type Monster = F64 / 'Monster'{id : Int   data : [] U8;  func : Fn()  func2 : Fn(construand mu U8, ref UInt, mu construand Bool, I32, mu F32, construand F64 => [] [] U16, U32)};;;
+
+
+
+type Monster(A, B) = 'Monster'{
+    handle : A
+    data : [] B
+}
+
+
+
+
+
+
+
+99 && a `infix` b * 33
+
+!nil{}[[[uninitialized -fun(ref b, 26, nil{} + 2) `gold` a[9]], tag{f = 13.2 i = 9}, 3] . helloer]
+
+!nil[#[#[uninitialized -fun(ref b, 26, nil + 2) `gold` ref a[9]], #'Tag'{f = 13.2 i = 9;}, 3] . helloer]
+
+a!=b==c>d&&y<f<=g||x`function`z>=h 
+
+
+IF end 42 ELSE 43
+
+
+CONTENTTYPE 95 CASE F64, Nil ~ nil CASE UInt ~ 4 DEFAULT ~ "Google" ==> F32
+
+
+SWITCH 3 + 4 CASE 1, 2 + 3 nil CASE #[] 20 DEFAULT 0
+
+SWITCH 3 DEFAULT 0
+
+CONTENTTYPE 95 CASE F64, Nil nil CASE UInt 4 DEFAULT "Google" ==> F32
+
+
+
+F64 / 'Monster'{id : Int   data : [] U8;  func : Fn()  func2 : Fn(construand mu U8, ref UInt, mu construand Bool, I32, mu F32, construand F64 => [] [] U16, U32)}   hej hej hej

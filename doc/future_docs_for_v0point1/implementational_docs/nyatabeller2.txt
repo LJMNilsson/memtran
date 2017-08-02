@@ -1,0 +1,614 @@
+Copyright (C) 2017 Martin Nilsson
+
+This file is part of the Memtran compiler.
+
+    The Memtran compiler is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    The Memtran compiler is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with the Memtran compiler.  If not, see http://www.gnu.org/licenses/ . 
+
+
+
+
+
+
+
+
+
+
+
+Summarizing table for values that consist memorywise of a head + things pointed to.
+
+
+There are seven slot classes, which can be categorized into three categories of heap memory ownership. 
+
+Slot class                          Ownership category          Comment
+
+immutable global var                Nonowner / Owner            Ownership status for individual variables is resolved at compile-time, during findOwnersPass.
+
+immutable local var                 Nonowner / owner            Ownership status for individual variables is resolved at compile-time, during findOwnersPass.
+                                                                Some immutable local vars are eliminated during the eliminatePass. 
+
+immutable param (default)           Nonowner
+
+immutable param (constructand)      Owner 
+
+"return slot"                       Owner                       Possibly receives its ownership by transfer. Immediately transfers its ownership again.
+
+mutable global variable             Owner                       Also has a "ghost system".
+
+mut. local var, or mut. param       Owner
+
+
+typecheckPass                   Just annotates the tree                             
+markOwnershipPass.              Just annotates the tree. Also annotates with marks for elimination
+transformPass.                  Constructs a new tree
+eliminatePass                   Constructs a new tree with eliminate statements
+lastOccurrencePass              Just annotates the tree                                                           
+generateIRPass
+
+ASTEliminationInitializationHeapPtr(String identifier, ASTIndexing exprIndexing)
+
+ASTExpr
+   ASTEliminateIndexingIntFromHeapPtr(String heapPtr)
+   ASTEliminateIndexingArrayHeadFromHeapPtr(String heapPtr)
+
+For the indexings == 0 case, just emit the owner's name.    
+
+
+
+buggar på 
+    transform - function call statement   FIXAD
+    initialization och mutation - lastOccurrencePass. FIXAD, testas av nästa pass hoppas jag         
+
+Vi skulle kunna använda ghost-value-systemet för lokala funktioner som refererar till lokala mutable vars. Men hur gör vi med params? När tabellerna är helt klara, och ref-parametrar är implementerade, kolla detta.
+
+Vi kan även använda ghostvalue-systemet för refparametrar/argument in general, så att modlock inte behövs... Men samma svårighet med parametrar eventuellt. Ty en global var tar ju HeadCopyUnflagged. Unless: man skickar the head; funktionen utför kopieringen??? Borde gå...
+
+
+
+* "Function type values, or values of any type that contains a function type, may not be returned in a return statement." "You cannot construct function type values from parts anyway, in this language, so why would you want to return them from a function?"
+
+* mutable local vars, or mutable params, that are "implicitly" referenced by a local function, participate in the mutlock and ghost value systems just like they were global mutable variables. But have the same assignment implementation, otherwise, as normal mutable local vars or mutable local params.
+
+* mutlock system is for global mutable variables plus the above case. Ghost value system is for global mutable variables plus the above case. 
+
+
+
+
+Remember to wholeTreeCopyUnflagged, vi behöver även HeadCopyUnflagged.
+
+Test example:
+
+mu array : [] Int = #[1, 2, 3, 4, 5]
+
+fn test2(b : [] Int) {
+
+}
+
+fn test1(a : [] Int) {
+    array = #[6, 7, 8]
+    test2(array)    
+}
+
+test1()
+
+Funkar som det ska. Nya värdet får också ghostflag. 
+
+Ghost system procedure "on return"
+==================================
+
+Ghost system procedure "before assignment"
+==========================================
+
+Ghost system procedure "after assignment"
+=========================================
+
+Ghost system procedure "maybe create ghost"
+===========================================
+
+Ghost system procedure "unghostflag head"
+=========================================
+
+Ghost system procedure "unghostflag whole tree"
+===============================================
+
+
+
+Full tables, for values that consist memorywise of a head + things pointed to.
+===========
+
+There are 49 cases for initialization, and 14 cases for mutation. With "indexing" is meant a series of 0 or more array indexings, possibly interleaved by struct field indexings (with the dot notation), into the value held by a slot. () When IF ... THEN is written with uppercase letters, it refers to a compile-time decision, and similar for other text in uppercase.
+
+Before emitting IR corresponding to the below table entries, the compiler runs a couple of passes on the AST. Among other things, these passes 
+   A) transforms initializations inside loops, to mutations (+ an initalization to default value for the type, outside the loop) 
+   B) calculate the ownership status of local immutable variables, and 
+   C) eliminate local immutable variables that are Nonowners, in the case where the value is owned by another immutable var or param within the function.   
+   D) marks last usages of local vars or params 
+
+This, in its turn, then simplifies calculating when transfer of ownership is doable.  
+
+Bear in mind that certain details of Cimmpl's language definition work in tandem with this scheme for implementing assign-by-whole-value/pass-by-whole-value. For example, "declaration is initialization" reduces the number of possible cases, and so does the fact that assignment is a statement, not an expression. Also, it is critical that immutability is the default syntactical choice when defining a variable or parameter, since "optimizing assignment to immutable slots" is a good deal of what this implementation scheme sets out to do.  
+
+Initialization, for values that consist memorywise of a head + things pointed to.
+=============================================================
+
+Provider                                Receiver                                    Implementation of assign-by-whole-value/pass-by-whole-value
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+immutable global var indexing           immutable global var                        Head copy. 
+
+
+immutable global var indexing           immutable local var                         Head copy. (NONOWNER STATUS OF RECEIVER.)    
+
+
+immutable global var indexing           immutable param (default)                   Head copy.
+
+
+immutable global var indexing           immutable param (constructand)              Whole tree copy of provider.             
+
+
+immutable global var indexing           return slot                                 Whole tree copy of provider.
+                                                                                            
+                                   
+immutable global var indexing           mutable global var                          Whole tree copy of provider, unghostflagged. (We unghostflag on return to mut. var.)
+
+
+immutable global var indexing           mut. local var, or mut. param               Whole tree copy of provider.
+
+
+
+
+
+
+
+immutable local var indexing            immutable global var                        N/A
+
+
+immutable local var indexing            immutable local var                         Head copy. 
+                                                                                    (NONOWNER STATUS OF RECEIVER.)
+
+
+immutable local var indexing            immutable param (default)                   Head copy.
+
+
+immutable local var indexing            immutable param (constructand)              IF OWNER STATUS OF PROVIDER,
+                                                                                        IF ZERO INDEXINGS ON PROVIDER,
+                                                                                            IF LAST OCCURRENCE OF PROVIDER,
+                                                                                                MARK PROVIDER VAR FOR NONDESTRUCT AT END OF SCCOP (I.E. TRANSFER).
+                                                                                                Head copy.
+                                                                                            ELSE
+                                                                                                Whole tree copy.
+                                                                                        ELSE
+                                                                                            Whole tree copy.
+                                                                                    ELSE
+                                                                                        Head copy.            
+
+
+immutable local var indexing            return slot                                 IF OWNER STATUS OF PROVIDER VAR, 
+                                                                                        IF ZERO INDEXINGS ON PROVIDER VAR,
+                                                                                            IF LAST OCCURRENCE OF PROVIDER VAR, (Note: may be false when returning multiple values...)
+                                                                                                MARK PROVIDER VAR FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER).
+                                                                                                Head copy.
+                                                                                            ELSE
+                                                                                                Whole tree copy.
+                                                                                        ELSE
+                                                                                            Whole tree copy.
+                                                                                    ELSE
+                                                                                        Whole tree copy. (Note: nonowning immutable local vars have often been eliminated.)
+                                                                                    
+
+immutable local var indexing            mutable global var                          N/A
+
+                
+immutable local var indexing            mut. local var, or mut. param               IF OWNER STATUS OF PROVIDER VAR, AND ZERO INDEXINGS ON PROVIDER VAR, AND LAST OCCURRENCE OF PROVIDER VAR,
+                                                                                        MARK PROVIDER VAR FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER).
+                                                                                        Head copy.                                                                                            
+                                                                                    ELSE            
+                                                                                        Whole tree copy.
+
+
+
+
+
+immutable param indexing (default)      immutable global var                        N/A
+
+
+immutable param indexing (default)      immutable local var                         Head copy. (NONOWNER STATUS OF RECEIVER.) 
+
+
+immutable param indexing (default)      immutable param (default)                   Head copy.
+
+
+immutable param indexing (default)      immutable param (constructand)              Whole tree copy.
+
+
+immutable param indexing (default)      return slot                                 Whole tree copy.
+
+
+immutable param indexing (default)      mutable global var                          N/A
+
+
+immutable param indexing (default)      mut. local var, or mut. param               Whole tree copy.
+
+
+
+
+
+
+immutable param indexing (construand)   immutable global var                        N/A
+
+immutable param indexing (construand)   immutable local var                         IF ZERO INDEXINGS ON PROVIDER, AND LAST OCCURRENCE OF PROVIDER,
+                                                                                        MARK PROVIDER FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER)
+                                                                                        Head copy.
+                                                                                    ELSE
+                                                                                        Whole tree copy.
+
+                                                                                    (OWNER STATUS OF RECEIVER.)            
+
+
+immutable param indexing (construand)   immutable param (default)                   Head copy.
+
+
+immutable param indexing (construand)   immutable param (construand)                IF ZERO INDEXINGS ON PROVIDER, AND LAST OCCURRENCE OF PROVIDER,
+                                                                                        MARK PROVIDER FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER)
+                                                                                        Head copy.
+                                                                                    ELSE
+                                                                                        Whole tree copy.
+
+
+immutable param indexing (construand)   return slot                                 IF ZERO INDEXINGS ON PROVIDER, AND LAST OCCURRENCE OF PROVIDER,
+                                                                                        MARK PROVIDER FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER)
+                                                                                        Head copy.
+                                                                                    ELSE
+                                                                                        Whole tree copy.
+
+
+immutable param indexing (construand)   mutable global var                          N/A
+
+
+immutable param indexing (construand)   mut. local var, or mut. param               IF ZERO INDEXINGS ON PROVIDER, AND LAST OCCURRENCE OF PROVIDER,
+                                                                                        MARK PROVIDER FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER)
+                                                                                        Head copy.
+                                                                                    ELSE
+                                                                                        Whole tree copy.
+
+
+
+
+return slot indexing                    immutable global var                        Check mutable global vars that went into the returning function (possibly indexed) for
+                                                                                    ghostflag + ghostptr!=null, and destruct their ghostvalues if so, 
+                                                                                    recursively down their current structure,
+                                                                                    and recursively down any ghostvalues.                                                                
+                                                                                    Un-ghostflag mutable global var indexings that went into the returning function. 
+
+                                                                                    IF ZERO INDEXINGS ON PROVIDER,
+                                                                                        head copy of provider.
+                                                                                    ELSE
+                                                                                        whole tree copy of provider indexing.
+                                                                                        Destruct providing return slot's whole value.
+
+                                                                                    
+
+
+
+return slot indexing                    immutable local var                         Check mutable global vars that went into the returning function (possibly indexed) for
+                                                                                    ghostflag + ghostptr!=null, and destruct their ghostvalues if so, 
+                                                                                    recursively down their current structure,
+                                                                                    and recursively down any ghostvalues.                                                                
+                                                                                    Un-ghostflag mutable global var indexings that went into the returning function.
+
+                                                                                    IF ZERO INDEXINGS ON PROVIDER,
+                                                                                        head copy of provider.
+                                                                                    ELSE
+                                                                                        whole tree copy of provider indexing.
+                                                                                        Destruct providing return slot's whole value.
+
+                                                                                    (OWNER STATUS OF RECEIVER.)
+
+
+
+return slot indexing                    immutable param (default)                   TRANSFORMED INTO 
+                                                                                        return slot indexing ==> immutable local var ===> immutable param,
+                                                                                            
+                                                                                        where the immutable local var has owner status, and resides in the scope of the function call instance 
+                                                                                        that contains the function call statement or the statement that contains the function call expr.
+
+                                                                                        (For memory saving reasons,
+                                                                                        it is destructed as soon as the function call returns, though, not at end of its scope.)
+                                                                                   
+                                                                                        (Or, if the scope is global, the intermediate immutable var is a "main local". Elaborate on this...)
+
+
+
+return slot indexing                    immutable param (constructand)              Check mutable global vars that went into the returning function (possibly indexed) for
+                                                                                    ghostflag + ghostptr!=null, and destruct their ghostvalues if so, 
+                                                                                    recursively down their current structure,
+                                                                                    and recursively down any ghostvalues.                                                                
+                                                                                    Un-ghostflag mutable global var indexings that went into the returning function. 
+
+                                                                                    Head copy.
+    
+
+return slot indexing                    return slot                                 Check mutable global vars that went into the returning function (possibly indexed) for
+                                                                                    ghostflag + ghostptr!=null, and destruct their ghostvalues if so, 
+                                                                                    recursively down their current structure,
+                                                                                    and recursively down any ghostvalues.                                                                
+                                                                                    Un-ghostflag mutable global var indexings that went into the returning function. 
+
+                                                                                    IF ZERO INDEXINGS ON PROVIDER,
+                                                                                        head copy of provider.
+                                                                                    ELSE 
+                                                                                        whole tree copy of provider indexing.
+                                                                                        Destruct providing return slot's whole value.
+
+
+return slot indexing                    mutable global var                          Check mutable global vars that went into the returning function (possibly indexed) for
+                                                                                    ghostflag + ghostptr!=null, and destruct their ghostvalues if so, 
+                                                                                    recursively down their current structure,
+                                                                                    and recursively down any ghostvalues.                                                                
+                                                                                    Un-ghostflag mutable global var indexings that went into the returning function.
+
+                                                                                    IF ZERO INDEXINGS ON PROVIDER,
+                                                                                        head copy of provider. unghostflagged, recursively. (We unghostflag on return to mut. var.)
+                                                                                    ELSE 
+                                                                                        whole tree copy of provider indexing. unghostflagged. (We unghostflag on return to mut. var.)
+                                                                                        Destruct providing return slot's whole value.
+
+
+return slot indexing                    mut. local var, or mut. param               Check mutable global vars that went into the returning function (possibly indexed) for
+                                                                                    ghostflag + ghostptr!=null, and destruct their ghostvalues if so, 
+                                                                                    recursively down their current structure,
+                                                                                    and recursively down any ghostvalues.                                                                
+                                                                                    Un-ghostflag mutable global var indexings that went into the returning function.
+
+                                                                                    IF ZERO INDEXINGS ON PROVIDER,
+                                                                                        head copy of provider.
+                                                                                    ELSE 
+                                                                                        whole tree copy of provider indexing.
+                                                                                        Destruct providing return slot's whole value.
+
+
+
+
+
+mutable global var indexing             immutable global var                        Whole tree copy.
+
+               
+mutable global var indexing             immutable local var                         Whole tree copy of provider. (OWNER STATUS OF RECEIVER.) 
+
+
+mutable global var indexing             immutable param (default)                   Set ghostflag for the index slot and all its parent slots, up to and including the var itself.
+                                                                                    Head copy of provider.                                                                                    
+
+
+mutable global var indexing             immutable param (constructand)              Whole tree copy of provider.
+
+
+mutable global var indexing             return slot                                 Whole tree copy of provider.
+
+     
+mutable global var indexing             mutable global var                          Whole tree copy of provider. unghostflagged. (We unghostflag on return to mut. var.)
+
+
+mutable global var indexing             mut. local var, or mut. param               Whole tree copy of provider.  
+
+
+
+
+
+
+
+mut. local var ind. or mut. param ind.  immutable global var                        N/A                     
+
+
+mut. local var ind. or mut. param ind.  immutable local var                         IF OWNER STATUS OF PROVIDER VAR, AND ZERO INDEXINGS ON PROVIDER VAR, AND LAST OCCURRENCE OF PROVIDER VAR,
+                                                                                        MARK PROVIDER VAR FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER).
+                                                                                        Head copy.                                                                                            
+                                                                                    ELSE            
+                                                                                        Whole tree copy.                
+
+                                                                                    (OWNER STATUS OF RECEIVER.)               
+
+
+mut. local var ind. or mut. param ind.  immutable param (default)                   Head copy.
+
+
+mut. local var ind. or mut. param ind.  immutable param (constructand)              IF OWNER STATUS OF PROVIDER VAR, AND ZERO INDEXINGS ON PROVIDER VAR, AND LAST OCCURRENCE OF PROVIDER VAR,
+                                                                                        MARK PROVIDER VAR FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER).
+                                                                                        Head copy.                                                                                            
+                                                                                    ELSE            
+                                                                                        Whole tree copy.
+
+
+mut. local var ind. or mut. param ind.  return slot                                 IF ZERO INDEXINGS ON PROVIDER VAR,
+                                                                                        IF LAST OCCURRENCE OF PROVIDER VAR, (Note: may be false when returning multiple values...)
+                                                                                            MARK PROVIDER VAR FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER).
+                                                                                            Head copy.
+                                                                                        ELSE
+                                                                                            Whole tree copy.
+                                                                                    ELSE
+                                                                                        Whole tree copy.
+                                                                                    
+
+mut. local var ind. or mut. param ind.  mutable global var                          N/A
+
+
+mut. local var ind. or mut. param ind.  mut. local var, or mut. param               IF ZERO INDEXINGS ON PROVIDER VAR, AND LAST OCCURRENCE OF PROVIDER VAR,
+                                                                                        MARK PROVIDER VAR FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER).
+                                                                                        Head copy.                                                                                            
+                                                                                    ELSE            
+                                                                                        Whole tree copy.           
+
+
+
+
+
+
+
+Mutation, for values that consist memorywise of a head + things pointed to.
+========
+
+Provider                                Receiver                                    Implementation of assign-by-whole-value/pass-by-whole-value
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+immutable global var indexing           mutable global var indexing                 If (case A) ghostflag on receiver, save curr. value head as ghost, 
+                                                                                    else (case B) destruct receiver's whole value.
+
+                                                                                    Then whole tree copy of provider. unghostflagged. (We unghostflag on return to mut. global var.)
+
+                                                                                    If case A above, set receiver's ghostptr.
+
+  
+immutable global var indexing           mut. local var ind., or mut. param ind.     Destruct receiver's whole tree. Then whole tree copy of provider.    
+
+
+
+
+
+immutable local var indexing            mutable global var indexing                 If (case A) ghostflag on receiver, save curr. value head as ghost, 
+                                                                                    else (case B) destruct receiver's whole value.
+ 
+                                                                                    IF OWNER STATUS ON PROVIDER, AND ZERO INDEXINGS ON PROVIDER VAR, AND LAST OCCURRENCE OF PROVIDER VAR,
+                                                                                        MARK PROVIDER FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER).
+                                                                                        Head copy.
+                                                                                    ELSE
+                                                                                        whole tree copy of provider. unghostflagged. (We unghostflag on return to mut. global var.)
+
+                                                                                    If case A above, set receiver's ghostptr.
+
+
+immutable local var indexing            mut. local var ind., or mut. param ind.     Destruct receiver's whole tree. 
+
+                                                                                    IF OWNER STATUS ON PROVIDER, AND ZERO INDEXINGS ON PROVIDER VAR, AND LAST OCCURRENCE OF PROVIDER VAR,
+                                                                                        MARK PROVIDER FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER).
+                                                                                        Head copy.
+                                                                                    ELSE
+                                                                                        whole tree copy of provider.
+
+
+
+
+
+immutable param indexing (default)      mutable global var indexing                 If (case A) ghostflag on receiver, save curr. value head as ghost, 
+                                                                                    else (case B) destruct receiver's whole value.
+
+                                                                                    Whole tree copy.
+
+                                                                                    If case A, set receiver's ghostptr.
+
+
+immutable param indexing (default)      mut. local var ind., or mut. param ind.     Destruct receiver's whole tree. 
+
+                                                                                    Whole tree copy.
+
+
+
+
+
+
+
+immutable param indexing (construand)   mutable global var indexing                 If (case A) ghostflag on receiver, save curr. value head as ghost, 
+                                                                                    else (case B) destruct receiver's whole value.
+
+                                                                                    IF ZERO INDEXINGS ON PROVIDER VAR, AND LAST OCCURRENCE OF PROVIDER VAR,
+                                                                                        MARK PROVIDER FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER).
+                                                                                        Head copy.
+                                                                                    ELSE
+                                                                                        whole tree copy of provider. unghostflagged. (We unghostflag on return to mut. global var.)
+
+                                                                                    If case A above, set receiver's ghostptr.
+
+                                                                                    
+
+
+immutable param indexing (construand)   mut. local var ind., or mut. param ind.     Destruct receiver's whole tree.
+
+                                                                                    IF ZERO INDEXINGS ON PROVIDER VAR, AND LAST OCCURRENCE OF PROVIDER VAR,
+                                                                                        MARK PROVIDER FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER).
+                                                                                        Head copy.
+                                                                                    ELSE
+                                                                                        whole tree copy of provider.
+
+
+
+return slot indexing                    mutable global var indexing                 Check mutable global vars that went into the returning function (possibly indexed) for
+                                                                                    ghostflag + ghostptr!=null, and destruct their ghostvalues if so, 
+                                                                                    recursively down their current structure,
+                                                                                    and recursively down any ghostvalues.                                                                
+                                                                                    Un-ghostflag mutable global var indexings that went into the returning function.
+
+                                                                                    If (case A) ghostflag on receiver, save curr. value head as ghost, 
+                                                                                    else (case B) destruct receiver's whole value. 
+
+                                                                                    IF ZERO INDEXINGS ON PROVIDER,
+                                                                                        head copy of provider. unghostflagged, recursively. (We unghostflag on return to mut. global var.)
+                                                                                    ELSE
+                                                                                        whole tree copy of provider indexing. unghostflagged. (We unghostflag on return to mut. global var.)
+                                                                                        Destruct providing return slot's whole value. 
+
+                                                                                    If case A above, set receiver's ghostptr.
+    
+                                                                                    
+
+                                                                                    
+return slot indexing                    mut. local var ind., or mut. param ind.     Check mutable global vars that went into the returning function (possibly indexed) for
+                                                                                    ghostflag + ghostptr!=null, and destruct their ghostvalues if so, 
+                                                                                    recursively down their current structure,
+                                                                                    and recursively down any ghostvalues.                
+                                                                                    Un-ghostflag mutable global var indexings that went into the returning function.
+    
+                                                                                    Destruct receiver's whole tree. 
+                                                                                    
+                                                                                    IF ZERO INDEXINGS ON PROVIDER,
+                                                                                        head copy of provider
+                                                                                    ELSE
+                                                                                        whole tree copy of provider indexing.
+                                                                                        Destruct providing return slot's whole value.
+                                                                             
+
+
+
+
+mutable global var indexing             mutable global var indexing                 If (case A) ghostflag on receiver, save curr. value head as ghost, 
+                                                                                    else (case B) destruct receiver's whole value.
+
+                                                                                    Then whole tree copy of provider. unghostflagged. (We unghostflag on return to mut. global var.) 
+
+                                                                                    If case A, set receiver's ghostptr.
+
+
+mutable global var indexing             mut. local var ind., or mut. param ind.     Destruct receiver's whole tree. Then whole tree copy of provider.   
+
+
+
+
+
+mut. local var ind., or mut. param ind. mutable global var indexing                 If (case A) ghostflag on receiver, save curr. value head as ghost, 
+                                                                                    else (case B) destruct receiver's whole value.
+
+                                                                                    IF ZERO INDEXINGS ON PROVIDER VAR, AND LAST OCCURRENCE OF PROVIDER VAR,
+                                                                                        MARK PROVIDER FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER).
+                                                                                        Head copy. unghostflagged, recursively. (We unghostflag on return to mut. global var.) 
+                                                                                    ELSE
+                                                                                        whole tree copy of provider. unghostflagged. (We unghostflag on return to mut. global var.)     
+
+                                                                                    If case A above, set receiver's ghostptr.                
+
+
+mut. local var ind., or mut. param ind. mut. local var ind., or mut. param ind.     Destruct receiver's whole tree. 
+
+                                                                                    IF ZERO INDEXINGS ON PROVIDER VAR, AND LAST OCCURRENCE OF PROVIDER VAR,
+                                                                                        MARK PROVIDER FOR NONDESTRUCTION AT END OF SCOPE (I.E. TRANSFER).
+                                                                                        Head copy.
+                                                                                    ELSE
+                                                                                        whole tree copy of provider.   

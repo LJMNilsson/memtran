@@ -1,0 +1,11 @@
+
+mu foo : [] [] Int = allocateArray(allocateArray(1, 2, 3))
+
+integer : Int = bar(foo[33])
+
+
+fn bar(arg : [] Int => Int) {
+    return 3
+} 
+
+
