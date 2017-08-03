@@ -3,7 +3,10 @@ fn arne(construand f ' int, mu g ' arr int) ' int :
         print_utf8("Hello")
     ;
 
-    switch a case 3 :
+    // fn f() ' bool :
+    // ;
+
+    switch lenny case 3 :
         fn lenny() ' int :
         ;
     ; default :
@@ -18,6 +21,9 @@ type dict = dict{entries ' arr arr u8}
 internal inline fn g() :
     swap(ref a, ref b)
 ;
+
+
+type bertrand = nil
 
 
 fn(t, u, v) memtest() :

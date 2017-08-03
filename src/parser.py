@@ -1181,9 +1181,7 @@ def _parse_type_inside_or():
 
             if tok.kind == Tok.RPAREN:
 
-                identifierType = NIdentifierType(peek.lineNr, peek.rowNr, None, identifier1)
-
-                parametrizedType = NParametrizedIdentifierType(peek.lineNr, peek.rowNr, identifierType, params)
+                parametrizedType = NParametrizedIdentifierType(peek.lineNr, peek.rowNr, None, identifier1, params)
 
                 return parametrizedType
 
@@ -1215,9 +1213,7 @@ def _parse_type_inside_or():
 
                 if tok.kind == Tok.RPAREN:
 
-                    identifierType = NIdentifierType(peek.lineNr, peek.rowNr, identifier1, identifier2)
-
-                    parametrizedType = NParametrizedIdentifierType(peek.lineNr, peek.rowNr, identifierType, params)
+                    parametrizedType = NParametrizedIdentifierType(peek.lineNr, peek.rowNr, identifier1, identifier2, params)
 
                     return parametrizedType
 
@@ -4671,7 +4667,7 @@ def _parse_assignment_left_side_item():
                 if variableType is None: 
                     return None
 
-                return NVariableDeclaration>(peek.lineNr, peek.rowNr, True, False, variableName, variableType)
+                return NVariableDeclaration(peek.lineNr, peek.rowNr, True, False, variableName, variableType)
 
             else:
 

@@ -64,14 +64,18 @@ if toks != False:
 
             mangledModuleName = name_mangler.mangle_basic_name("typecollectiontest")
 
-            typeDict = type_collection.gather(parseResult, mangledModuleName)
+            directlyImportedTypesDict = {}
+
+            otherImportedModulesTypeDictDict = {} # should be a dict of dicts
+
+            typeDict = type_collection.gather(parseResult, mangledModuleName, directlyImportedTypesDict)
             if not (typeDict == False):
 
                     print("TYPE COLLECTION SUCCESSFUL!")
                 
                     print(typeDict)
 
-                    success = type_collection.check(typeDict)
+                    success = type_collection.check(typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict)
 
                     if success:
 

@@ -28,7 +28,7 @@ import name_mangler
 # Returns False if a duplicate was found! 
 # TODO: Add functionality to check for duplicate names in other modules (directly) imported
 
-def gather(astProgram, mangledModuleName):
+def gather(astProgram, mangledModuleName, directlyImportedTypesDict):
 
     typeDict = {}
 
@@ -41,7 +41,13 @@ def gather(astProgram, mangledModuleName):
                 util.log_error(statement.name.lineNr, statement.name.typeNr, "Name collision.")
                 return False
 
+            elif statement.name.name in directlyImportedTypesDict:
+
+                util.log_error(statement.name.lineNr, statement.name.typeNr, "Name collision with directly imported type.")
+                return False
+
             else:
+
                 dictAddition = statement.create_copy()
 
                 dictAddition.mangledName = name_mangler.mangle_type_name(statement.name.name, mangledModuleName)
@@ -59,10 +65,13 @@ class _CheckTypesVisitor(AbstractASTVisitor):
     # TODO: add the whole module identifier business!
 
 
-    def __init__(self, allowedNamesList, typeDict):
+    def __init__(self, allowedParamNamesList, typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict):
             
-        self.allowedNamesSet = set(allowedNamesList)
+
+        self.allowedParamNamesSet = set(allowedParamNamesList)
         self.typeDict = typeDict
+        self.directlyImportedTypesDict = directlyImportedTypesDict
+        self.otherImportedModulesTypeDictDict = otherImportedModulesTypeDictDict
         
 
 
@@ -70,39 +79,102 @@ class _CheckTypesVisitor(AbstractASTVisitor):
 
         if isinstance(node, NParametrizedIdentifierType):
 
-            if not node.name.name in self.allowedNamesSet:
+            found = False
+            typeParamsOrNull = None
+
+            if node.moduleNameOrNull is None:
+
+                if node.name.name in self.allowedParamNamesSet:
+                    found = True   
+                    typeParamsOrNull = None    # in this case, we may never have params so this will not work out below
+ 
+                elif node.name.name in self.typeDict:
+                    found = True
+                    typeParamsOrNull = self.typeDict[node.name.name].paramsOrNull
+
+                else:
+                    found = False
+                    typeParamsOrNull = None   # dummy
+
+            else:
+                if not node.moduleNameOrNull in self.otherImportedModulesTypeDictDict:
+                    util.log_error(node.lineNr, node.rowNr, "Using a non-imported module name.")
+                    return False
+
+                moduleTypeDict = self.otherImportedModulesTypeDictDict[node.moduleNameOrNull]
+
+                if node.name.name in moduleTypeDict:
+                    found = True
+                    typeParamsOrNull = moduleTypeDict[node.name.name].paramsOrNull
+
+
+
+            if not found:
                 util.log_error(node.lineNr, node.rowNr, "Undefined type name used.")
                 return False
 
             paramsLen = len(node.params)
-            typeParamsOrNull = self.typeDict[node.name.name].paramsOrNull
 
             if typeParamsOrNull is None:
-                util.log_error(node.lineNr, node.rowNr, "Parametrized usage of non-parametrized named type.")
+                util.log_error(node.lineNr, node.rowNr, "Parametrized usage of non-parametrized named type (or param).")
                 return False
             else:
                 if paramsLen != len(typeParamsOrNull):
                     util.log_error(node.lineNr, node.rowNr, "Wrong number of arguments to parametrized type.")
                     return False            
             
-                return True
+            return True
             
         
         elif isinstance(node, NIdentifierType):
 
-            if not node.name.name in self.allowedNamesSet:
+            found = False
+            typeParamsOrNull = None
 
-                util.log_error(node.lineNr, node.rowNr, "Undefined type name used.")
+            if node.moduleNameOrNull is None:
+
+                # util.log_debug("TJOSAN!")
+
+                if node.name.name in self.allowedParamNamesSet:
+                    found = True
+                    typeParamsOrNull = None    
+ 
+                elif node.name.name in self.typeDict:
+                    found = True
+                    typeParamsOrNull = self.typeDict[node.name.name].paramsOrNull
+
+                else:
+                    found = False
+                    typeParamsOrNull = None # dummy
+
+            else:
+                if not node.moduleNameOrNull in self.otherImportedModulesTypeDictDict:
+                    util.log_error(node.lineNr, node.rowNr, "Using a non-imported module name.")
+                    return False
+
+                moduleTypeDict = self.otherImportedModulesTypeDictDict[node.moduleNameOrNull]
+
+                if node.name.name in moduleTypeDict:
+                    found = True
+                    typeParamsOrNull = moduleTypeDict[node.name.name].paramsOrNull
+
+
+
+            if not found:
+                util.log_error(node.lineNr, node.rowNr, "Undefined type name used. #2707")
                 return False
 
             else:
 
-                if node.name.name in self.typeDict:   # not the case for params... this should kinda work    
-                    if not (self.typeDict[node.name.name].paramsOrNull is None):
-                        util.log_error(node.lineNr, node.rowNr, "Non-parametrized usage of parametrized named type.")
-                        return False
+                if not typeParamsOrNull is None:    
+                    util.log_error(node.lineNr, node.rowNr, "Non-parametrized usage of parametrized named type.")
+                    return False
 
-                return True
+
+            return True
+
+
+
 
         else:
             return True    
@@ -114,28 +186,22 @@ class _CheckTypesVisitor(AbstractASTVisitor):
 # Performs additional checks. Returns True for pass, or False for error.
 # TODO: Allow mathching against module imported names
 
-def check(typeDeclarationDict):
+def check(typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict):
 
-    basicAllowedNames = [] 
-    for typeName in typeDeclarationDict.keys():
-        basicAllowedNames.append(typeName)      # this conversion to list is needed I guess
-
-    for typeName, declaration in typeDeclarationDict.items():
+    for typeName, declaration in typeDict.items():
 
         params = []
+
         if not declaration.paramsOrNull is None:
-            for param in declaration.paramsOrNull:
-                params.append(param.name)
+            for ident in declaration.paramsOrNull:
+                params.append(ident.name)        
 
-        allowedNamesList = basicAllowedNames + params
-
-        # print(allowedNamesList)
-
-        checker = _CheckTypesVisitor(allowedNamesList, typeDeclarationDict)
+        checker = _CheckTypesVisitor(params, typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict)
 
         success = declaration.theType.accept_visitor(checker)
         if success == False:
-            return False
+            return False    
+
 
     
     return True

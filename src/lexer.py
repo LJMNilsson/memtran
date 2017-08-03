@@ -858,7 +858,7 @@ def lex_file(filename):
                     tokenList.append(t)
 
     except OSError:
-        util.log_error("Could not access the file: " + filename)
+        util.log_error(0, 0, "Could not access the file: " + filename)
         return False    
     
     if errorFree:

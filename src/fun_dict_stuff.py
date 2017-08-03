@@ -46,19 +46,68 @@ class FunListEntry(FunListEntryOrSlotEntry):  # can also hold template entries!!
 class VarEntry(FunListEntryOrSlotEntry):
 
     # String mangledName;
+    # boolean isMu;
+    # boolean isInternal;
+    # NType theType;
 
-    def __init__(self, mangledName):
+    def __init__(self, mangledName, isMu, isInternal, theType):
         self.mangledName = mangledName
+        self.isMu = isMu
+        self.isInternal = isInternal
+        self.theType = theType
 
     def print_it(self):
-        print("VAR: ", end='')
-        print(self.mangledName)
+        if self.isMu:
+            print("mu ", end='')
+
+        if self.isInternal:
+            print("internal ", end='')        
+
+        print("VAR: mangled name: ", end='')
+        print(self.mangledName, end='')
+        
+        print(" ' ", end='')
+    
+        self.theType.print_it()
+
+        print("") # newline
+
+        
+
+class BlockEntry(FunListEntryOrSlotEntry):
+
+    # Dictionary<FunListEntryOrSlotEntry> localDict;
+
+    def __init__(self, localDict):
+        self.localDict = localDict
+
+    def print_it(self):
+        print("block: {")
+
+        for key, value in self.localDict.items():
+
+            print(key, end='')
+            print(": ", end='')
+            value.print_it()
+            print("") # newline
+
+        print("}")
 
 
-class ParamEntry(FunListEntryOrSlotEntry):   # don't know whether we will need this one
 
-    pass
+class ParamEntry(FunListEntryOrSlotEntry): # should not need any mangled name... I hope
 
+    # NParam definitionParam;
+
+    def __init__(self, definitionParam):
+        self.definitionParam = definitionParam
+
+    def print_it(self):
+
+        print("PARAM: definition: ", end='')
+        self.definitionParam.print_it()
+
+        print("")  # newline
 
 
 class FunOrTemplateEntry:
@@ -69,7 +118,7 @@ class FunEntry(FunOrTemplateEntry):
     
     # String mangledName;
     # FunSignature signature;
-    # FunListEntryOrSlotEntry localDict;
+    # Dictionary<FunListEntryOrSlotEntry> localDict;
     # funsIndex
 
     # ADDED IN LATER PASSES:
