@@ -29,12 +29,12 @@ from fun_dict_stuff import *
 
 
 
-def run_pass(programAST, mangledModuleName, blockNumberList):   # returns a funDict
+def run_pass(programAST, mangledModuleName, blockNumberList, typeDict, directlyImportedTypesDict):   # returns a funDict
 
     funDict = {}
 
     for statement in programAST.statements:
-        success = _funcollect_statement(funDict, statement, mangledModuleName, True, blockNumberList, 0)
+        success = _funcollect_statement(funDict, statement, mangledModuleName, True, blockNumberList, 0, typeDict, directlyImportedTypesDict, set([]))
         if success == False:
             return False        
 
@@ -48,17 +48,32 @@ def run_pass(programAST, mangledModuleName, blockNumberList):   # returns a funD
 
 # These 'funcollect' functions add to the funDict, and return True or False signalling success or not.
 
-def _funcollect_statement(funDict, statement, mangledModuleName, isGlobal, blockNumberList, depth):
+def _funcollect_statement(funDict, statement, mangledModuleName, isGlobal, blockNumberList, depth, typeDict, directlyImportedTypesDict, namesIntoBlockSet):
     
     if isinstance(statement, NRefToFunctionDeclarationWithDefinition):
 
         actual = statement.funs[statement.funsIndex]
 
+
+        if depth == 0 and actual.name.name in typeDict:
+            util.log_error(actual.name.lineNr, actual.name.rowNr, "Name collision with named type.")
+            return False        
+        elif depth == 0 and actual.name.name in directlyImportedTypesDict:
+            util.log_error(actual.name.lineNr, actual.name.rowNr, "Name collision with imported named type.")
+            return False
+        elif actual.name.name in namesIntoBlockSet:
+            util.log_error(actual.name.lineNr, actual.name.rowNr, "Name collision with name going into this block.")
+            return False
+
+
         overloadNr = 0   # default
         if actual.name.name in funDict:
             overloadNr = len(funDict[actual.name.name].funEntries)
 
-        mangledName = name_mangler.mangle_function_name(actual.name.name, mangledModuleName, isGlobal, blockNumberList, overloadNr)
+        mangledName = name_mangler.mangle_function_name(actual.name.name, mangledModuleName, isGlobal, blockNumberList[0:depth], overloadNr)
+
+        # set the mangledName on the actual too, we need it to find our fun in the list later, somewhat hackishly
+        actual.mangledName = mangledName
 
         paramsCopy = []
         for param in actual.params:
@@ -73,13 +88,18 @@ def _funcollect_statement(funDict, statement, mangledModuleName, isGlobal, block
         localDict = {}
 
         if len(blockNumberList) <= depth:
-            for i in range(len(blockNumberList), depth):
+            for i in range(len(blockNumberList), depth + 1):
                 blockNumberList.append(0)            
         else:
             blockNumberList[depth] += 1
 
+
+        intoNames = set([])
+        for param in actual.params:
+            intoNames.add(param.name.name)
+
         for stmt in actual.body.statements:
-            success = _funcollect_statement(localDict, stmt, mangledModuleName, False, blockNumberList, depth + 1)
+            success = _funcollect_statement(localDict, stmt, mangledModuleName, False, blockNumberList, depth + 1, typeDict, directlyImportedTypesDict, intoNames)
             if success == False:
                 return False
 
@@ -96,13 +116,17 @@ def _funcollect_statement(funDict, statement, mangledModuleName, isGlobal, block
     elif isinstance(statement, NBlock):
 
         if len(blockNumberList) <= depth:
-            for i in range(len(blockNumberList), depth):
+            for i in range(len(blockNumberList), depth + 1):
                 blockNumberList.append(0)
         else:
             blockNumberList[depth] += 1
 
+        localDict = {}
+
+        funDict[str(blockNumberList[depth])] = BlockEntry(localDict)
+
         for stmt in statement.statements:
-            success = _funcollect_statement(funDict, stmt, mangledModuleName, False, blockNumberList, depth + 1)
+            success = _funcollect_statement(localDict, stmt, mangledModuleName, False, blockNumberList, depth + 1, typeDict, directlyImportedTypesDict, set([]))
             if success == False:
                 return False
 
@@ -110,17 +134,17 @@ def _funcollect_statement(funDict, statement, mangledModuleName, isGlobal, block
 
     elif isinstance(statement, NIfStatement):
 
-        success = _funcollect_statement(funDict, statement.ifBlock, mangledModuleName, False, blockNumberList, depth)
+        success = _funcollect_statement(funDict, statement.ifBlock, mangledModuleName, False, blockNumberList, depth, typeDict, directlyImportedTypesDict, set([]))
         if success == False:
             return False
 
         for elseIfClause in statement.elseIfClauses:
-            success = _funcollect_statement(funDict, elseIfClause.block, mangledModuleName, False, blockNumberList, depth)
+            success = _funcollect_statement(funDict, elseIfClause.block, mangledModuleName, False, blockNumberList, depth, typeDict, directlyImportedTypesDict, set([]))
             if success == False:
                 return False
         
         if not statement.elseBlockOrNull is None:
-            success = _funcollect_statement(funDict, statement.elseBlockOrNull, mangledModuleName, False, blockNumberList, depth)
+            success = _funcollect_statement(funDict, statement.elseBlockOrNull, mangledModuleName, False, blockNumberList, depth, typeDict, directlyImportedTypesDict, set([]))
             if success == False:
                 return False
         
@@ -133,6 +157,18 @@ def _funcollect_statement(funDict, statement, mangledModuleName, isGlobal, block
             return False
 
         actual = statement.templates[statement.templatesIndex]
+
+
+        if depth == 0 and actual.name.name in typeDict:
+            util.log_error(actual.name.lineNr, actual.name.rowNr, "Name collision with named type.")
+            return False        
+        elif depth == 0 and actual.name.name in directlyImportedTypesDict:
+            util.log_error(actual.name.lineNr, actual.name.rowNr, "Name collision with imported named type.")
+            return False 
+        elif actual.name.name in namesIntoBlockSet:
+            util.log_error(actual.name.lineNr, actual.name.rowNr, "Name collision with name going into this block.")
+            return False       
+
 
         mangledBasicName = name_mangler.mangle_basic_name(actual.name.name)
 
@@ -167,7 +203,7 @@ def _funcollect_statement(funDict, statement, mangledModuleName, isGlobal, block
 
     elif isinstance(statement, NLoopStatement):
 
-        success = _funcollect_statement(funDict, statement.block, mangledModuleName, False, blockNumberList, depth)
+        success = _funcollect_statement(funDict, statement.block, mangledModuleName, False, blockNumberList, depth, typeDict, directlyImportedTypesDict, {})
         if success == False:
             return False
 
@@ -175,21 +211,37 @@ def _funcollect_statement(funDict, statement, mangledModuleName, isGlobal, block
 
     elif isinstance(statement, NForStatement):
 
-        success = _funcollect_statement(funDict, statement.block, mangledModuleName, False, blockNumberList, depth)
+        intoNames = set([])
+        
+        if not statement.rangeOrNull is None:
+            if statement.rangeOrNull.counterName.name in intoNames:
+                util.log_error(statement.rangeOrNull.counterName.lineNr, statement.rangeOrNull.counterName.rowNr, "Name collision.")
+                return False
+            else:
+                intoNames.add(statement.rangeOrNull.counterName.name)
+
+        for iteration in statement.iterations:
+            if iteration.itName.name in intoNames:   # we call in the same way indepenently if it is an IterationOver or an IterationIn...
+                util.log_error(iteration.itName.lineNr, iteration.itName.rowNr, "Name collision.")
+                return False
+            else:
+                intoNames.add(iteration.itName.name)
+
+        success = _funcollect_statement(funDict, statement.block, mangledModuleName, False, blockNumberList, depth, typeDict, directlyImportedTypesDict, intoNames)
         if success == False:
             return False
 
         return True
 
-    elif isinstance(statement, NSwitchStatement):
+    elif isinstance(statement, NSwitchStatement):   
 
         for case in statement.cases:
-            success = _funcollect_statement(funDict, case.block, mangledModuleName, False, blockNumberList, depth)
+            success = _funcollect_statement(funDict, case.block, mangledModuleName, False, blockNumberList, depth, typeDict, directlyImportedTypesDict, set([]))
             if success == False:
                 return False
 
         if not statement.defaultCaseOrNull is None:
-            success = _funcollect_statement(funDict, statement.defaultCaseOrNull, mangledModuleName, False, blockNumberList, depth)
+            success = _funcollect_statement(funDict, statement.defaultCaseOrNull, mangledModuleName, False, blockNumberList, depth, typeDict, directlyImportedTypesDict, set([]))
             if success == False:
                 return False
              
@@ -197,13 +249,18 @@ def _funcollect_statement(funDict, statement, mangledModuleName, isGlobal, block
 
     elif isinstance(statement, NContenttypeStatement):
 
+        intoNames = set([])
+
+        if isinstance(statement.switchValue, NIdentifierExpression) and (statement.switchValue.moduleNameOrNull is None):
+            intoNames.add(statement.switchValue.name.name)
+
         for case in statement.cases:
-            success = _funcollect_statement(funDict, case.block, mangledModuleName, False, blockNumberList, depth)
+            success = _funcollect_statement(funDict, case.block, mangledModuleName, False, blockNumberList, depth, typeDict, directlyImportedTypesDict, intoNames)
             if success == False:
                 return False
 
         if not statement.defaultCaseOrNull is None:
-            success = _funcollect_statement(funDict, statement.defaultCaseOrNull, mangledModuleName, False, blockNumberList, depth)
+            success = _funcollect_statement(funDict, statement.defaultCaseOrNull, mangledModuleName, False, blockNumberList, depth, typeDict, directlyImportedTypesDict, intoNames)
             if success == False:
                 return False
              

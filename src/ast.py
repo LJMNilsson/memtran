@@ -931,21 +931,28 @@ class NParametrizedIdentifierType(NType):
 
     # long lineNr;
     # long rowNr;
-    # NIdentifierType name;
+    # NIdentifier moduleNameOrNull;
+    # NIdentifier name;
     # ArrayList<NType> params; 
 
     def __init__(self, lineNr,
         rowNr,
+        moduleNameOrNull,
         name,
         params):
 
         self.lineNr = lineNr
         self.rowNr = rowNr
+        self.moduleNameOrNull = moduleNameOrNull
         self.name = name
         self.params = params
     
 
     def print_it(self):
+        if not self.moduleNameOrNull is None:
+            self.moduleNameOrNull.print_it()
+            print("::", end='')
+
         self.name.print_it()
         print("(", end='')
         if len(self.params) < 1:
@@ -971,11 +978,19 @@ class NParametrizedIdentifierType(NType):
         for p in self.params:
             paramsCopy.append(p.create_copy())
         
+        if self.moduleNameOrNull is None:
+            return NParametrizedIdentifierType(self.lineNr, self.rowNr, None, self.name.create_copy(), paramsCopy)
+        else:
+            return NParametrizedIdentifierType(self.lineNr, self.rowNr, self.moduleNameOrNull.create_copy(), self.name.create_copy(), paramsCopy)
 
-        return NParametrizedIdentifierType(self.lineNr, self.rowNr, self.name.create_copy(), paramsCopy)
-    
+
 
     def accept_visitor(self, visitor):
+        if not self.moduleNameOrNull is None:
+            success = self.moduleNameOrNull.accept_visitor(visitor)
+            if success == False:
+                return False
+
         success = self.name.accept_visitor(visitor)
         if success == False:
             return False

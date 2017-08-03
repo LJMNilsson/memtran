@@ -3,6 +3,8 @@ fn arne(construand f ' int, mu g ' arr int) ' int :
         print_utf8("Hello")
     ;
 
+    goose ' bool = true
+
     // fn f() ' bool :
     // ;
 
@@ -10,7 +12,7 @@ fn arne(construand f ' int, mu g ' arr int) ' int :
         fn lenny() ' int :
         ;
     ; default :
-        i = 19
+        mu i ' int = 19
     ;
 ;
 

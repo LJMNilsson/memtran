@@ -67,14 +67,18 @@ if toks != False:
 
             # TODO: parse and collect module .mh header files here
 
-            typeDict = type_collection.gather(parseResult, mangledModuleName)
+            directlyImportedTypesDict = {}
+
+            otherImportedModulesTypeDictDict = {} # should be a dict of dicts
+
+            typeDict = type_collection.gather(parseResult, mangledModuleName, directlyImportedTypesDict)
             if not (typeDict == False):
 
                     print("TYPE COLLECTION SUCCESSFUL!")
                 
                     print(typeDict)
 
-                    success = type_collection.check(typeDict)
+                    success = type_collection.check(typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict)
 
                     if success:
 
@@ -82,7 +86,7 @@ if toks != False:
 
                         blockNumberList = [] # Initial value. Created by fun_collection pass. To be used again with template specialisation!!!
 
-                        funDict = fun_collection.run_pass(parseResult, mangledModuleName, blockNumberList)
+                        funDict = fun_collection.run_pass(parseResult, mangledModuleName, blockNumberList, typeDict, directlyImportedTypesDict)
 
                         if not (funDict == False):
 

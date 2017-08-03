@@ -25,10 +25,12 @@ import parser
 import end_expansion
 import name_mangler
 import type_collection
+import fun_collection   # also collects templates, unspecialized
+import slot_collection
 
-util.currentFileName = "typecollectiontest.mtr"
+util.currentFileName = "slotcollectiontest.mtr"
 
-toks = lexer.lex_file("typecollectiontest.mtr")
+toks = lexer.lex_file("slotcollectiontest.mtr")
 
 if toks != False:
     print("LEXING SUCCESSFUL!")
@@ -62,11 +64,17 @@ if toks != False:
             parseResult.print_it()
             print("") # newline
 
-            mangledModuleName = name_mangler.mangle_basic_name("typecollectiontest")
+            mangledModuleName = name_mangler.mangle_basic_name("slotcollectiontest")
+
+            # TODO: parse and collect module .mh header files here
 
             directlyImportedTypesDict = {}
 
             otherImportedModulesTypeDictDict = {} # should be a dict of dicts
+
+            directlyImportedFunsDict = {}       # these two also contain slot declarations, despite the naming
+
+            otherImportedModulesFunDictDict = {}
 
             typeDict = type_collection.gather(parseResult, mangledModuleName, directlyImportedTypesDict)
             if not (typeDict == False):
@@ -81,4 +89,38 @@ if toks != False:
 
                         print("NAMED TYPE SIGNATURE CHECKING SUCCESSFUL!")
 
+                        blockNumberList = [] # Initial value. Created by fun_collection pass. To be used again with template specialisation!!! NOTE: ??
 
+                        funDict = fun_collection.run_pass(parseResult, mangledModuleName, blockNumberList, typeDict, directlyImportedTypesDict)
+
+                        if not (funDict == False):
+
+                            print("FUNCTION COLLECTION SUCCESSFUL!")
+
+                            for key, value in funDict.items():
+                                print(key, end='')
+                                print(": ", end='')
+                                value.print_it()
+                                print("")  # newline
+
+                            slotBlockNumberList = []  # should hopefully become the same as 'blockNumberList' as we recurse in the same way...
+
+                            success = slot_collection.run_pass(
+                                parseResult, funDict, mangledModuleName, slotBlockNumberList, typeDict, directlyImportedTypesDict, directlyImportedFunsDict
+                            )
+                
+                            if success:
+
+                                print("SLOT COLLECTION SUCCESSFUL!")
+
+                                for key, value in funDict.items():
+                                    print(key, end='')
+                                    print(": ", end='')
+                                    value.print_it()
+                                    print("")  # newline
+
+
+
+
+
+                                          
