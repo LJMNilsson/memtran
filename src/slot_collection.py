@@ -30,10 +30,23 @@ from fun_dict_stuff import *
 
 # Returns True or False depending on success
 
-def run_pass(programAST, funDict, mangledModuleName, varBlockNumberList, typeDict, directlyImportedTypesDict, directlyImportedFunsDict): 
+# This pass also simultaneously checks for forward usage of slots (TODO)
+
+def run_pass(
+    programAST, funDict, mangledModuleName, varBlockNumberList, 
+    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
+    directlyImportedFunsDict, otherImportedModulesFunDictDict
+): 
+
+    funDictStack = [funDict]
  
     for statement in programAST.statements:
-        success = _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumberList, 0, typeDict, directlyImportedTypesDict, directlyImportedFunsDict, set([]))
+        success = _slotcollect_statement(
+            statement, funDictStack, mangledModuleName, varBlockNumberList, 0, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict,
+            set([])
+        )
         if success == False:
             return False        
 
@@ -43,7 +56,12 @@ def run_pass(programAST, funDict, mangledModuleName, varBlockNumberList, typeDic
 
 # Adds slots to the funDict, and returns True or False depending on success    
 
-def _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumberList, depth, typeDict, directlyImportedTypesDict, directlyImportedFunsDict, namesIntoBlockSet):
+def _slotcollect_statement(
+    statement, funDictStack, mangledModuleName, varBlockNumberList, depth, 
+    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+    directlyImportedFunsDict, otherImportedModulesFunDictDict,
+    namesIntoBlock
+):
 
     if isinstance(statement, NRefToFunctionDeclarationWithDefinition):
 
@@ -56,20 +74,19 @@ def _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumber
             varBlockNumberList[depth] += 1
 
 
-        funcEntryList = funDict[actual.name.name].funEntries
+        funcEntryList = funDictStack[len(funDictStack) - 1][actual.name.name].funEntries
 
         funcEntry = None # dummy
         for fentry in funcEntryList:
             if fentry.mangledName == actual.mangledName:
                 funcEntry = fentry                 # we better find it... below code assumes != None
- 
+  
 
 
         intoNames = set([])
         for param in actual.params:
-            intoNames.add(param.name.name)
 
-            # also add the param to the funDict:
+            # add the param to the funDict:
                         
             if param.name.name in funcEntry.localDict:
                 util.log_error(param.name.lineNr, param.name.rowNr, "Name collision. #7979")  # can also be with recently added lhsEntries...
@@ -80,7 +97,10 @@ def _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumber
         
         for stmt in actual.body.statements:
             success = _slotcollect_statement(
-                stmt, funcEntry.localDict, mangledModuleName, varBlockNumberList, depth + 1, typeDict, directlyImportedTypesDict, directlyImportedFunsDict, intoNames
+                stmt, funDictStack + [funcEntry.localDict], mangledModuleName, varBlockNumberList, depth + 1, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
+                directlyImportedFunsDict, otherImportedModulesFunDictDict,
+                set([])
             )
             if success == False:
                 return False
@@ -97,16 +117,24 @@ def _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumber
         else:
             varBlockNumberList[depth] += 1
 
+
+        for nameIntoBlock in namesIntoBlock:
+            if nameIntoBlock in funDictStack[len(funDictStack) - 1][str(varBlockNumberlist[depth])].localDict:
+                util.log_error(0, 0, "Name collision with name into block: " + nameIntoBlock) # should already be checked for though
+                return False
+            else:
+                funDictStack[len(funDictStack) - 1][str(varBlockNumberList[depth])].localDict[nameIntoBlock] = NameIntoBlockEntry()            
+
         for stmt in statement.statements:
             success = _slotcollect_statement(
                 stmt, 
-                funDict[str(varBlockNumberList[depth])].localDict, 
+                funDictStack + [funDictStack[len(funDictStack) - 1][str(varBlockNumberList[depth])].localDict], 
                 mangledModuleName, 
                 varBlockNumberList, 
                 depth + 1, 
                 typeDict, 
-                directlyImportedTypesDict, 
-                directlyImportedFunsDict, 
+                directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
+                directlyImportedFunsDict, otherImportedModulesFunDictDict,
                 set([])
             )
             if success == False:
@@ -117,22 +145,49 @@ def _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumber
 
     elif isinstance(statement, NIfStatement):
 
+        success = _check_expression_for_forward_slot_usage(
+            statement.condition, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
         success = _slotcollect_statement(
-            statement.ifBlock, funDict, mangledModuleName, varBlockNumberList, depth, typeDict, directlyImportedTypesDict, directlyImportedFunsDict, set([])
+            statement.ifBlock, funDictStack, mangledModuleName, varBlockNumberList, depth, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict,
+            set([])
         )
         if success == False:
             return False
 
         for elseIfClause in statement.elseIfClauses:
+            success = _check_expression_for_forward_slot_usage(
+                elseIfClause.condition, funDictStack, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                False
+            )
+            if success == False:
+                return False
+
             success = _slotcollect_statement(
-                statement.elseIfClause, funDict, mangledModuleName, varBlockNumberList, depth, typeDict, directlyImportedTypesDict, directlyImportedFunsDict, set([])
+                statement.elseIfClause, funDictStack, mangledModuleName, varBlockNumberList, depth, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
+                directlyImportedFunsDict, otherImportedModulesFunDictDict,
+                set([])
             )
             if success == False:
                 return False
         
         if not statement.elseBlockOrNull is None:
             success = _slotcollect_statement(
-                statement.elseBlockOrNull, funDict, mangledModuleName, varBlockNumberList, depth, typeDict, directlyImportedTypesDict, directlyImportedFunsDict, set([])
+                statement.elseBlockOrNull, funDictStack, mangledModuleName, varBlockNumberList, depth, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                directlyImportedFunsDict, otherImportedModulesFunDictDict,
+                set([])
             )
             if success == False:
                 return False
@@ -146,7 +201,10 @@ def _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumber
     elif isinstance(statement, NLoopStatement):
 
         success = _slotcollect_statement(
-            statement.block, funDict, mangledModuleName, varBlockNumberList, depth, typeDict, directlyImportedTypesDict, directlyImportedFunsDict, set([])
+            statement.block, funDictStack, mangledModuleName, varBlockNumberList, depth, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
+            directlyImportedFunsDict, otherImportedModulesFunDictDict,
+            set([])
         )
         if success == False:
             return False
@@ -154,25 +212,112 @@ def _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumber
         return True
 
     elif isinstance(statement, NForStatement):
+    
+        intoNames = set([])        
 
-        intoNames = set([])
-        
         if not statement.rangeOrNull is None:
+            success = _check_expression_for_forward_slot_usage(
+                statement.rangeOrNull.rangeFrom, funDictStack, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                False
+            )
+            if success == False:
+                return False
+
+            success = _check_expression_for_forward_slot_usage(
+                statement.rangeOrNull.rangeTo, funDictStack, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                False
+            )
+            if success == False:
+                return False
+
             if statement.rangeOrNull.counterName.name in intoNames:
                 util.log_error(statement.rangeOrNull.counterName.lineNr, statement.rangeOrNull.counterName.rowNr, "Name collision.")
                 return False
             else:
                 intoNames.add(statement.rangeOrNull.counterName.name)
 
+
         for iteration in statement.iterations:
+            if isinstance(iteration, NIterationIn):
+                success = _check_expression_for_forward_slot_usage(
+                    iteration.arrayExpression, funDictStack, 
+                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    False
+                )
+                if success == False:
+                    return False
+
+                if not iteration.indexfactorOrNull is None:
+                    success = _check_expression_for_forward_slot_usage(
+                        iteration.indexfactorOrNull, funDictStack, 
+                        typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                        directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                        False
+                    )
+                    if success == False:
+                        return False
+
+                if not iteration.indexoffsetOrNull is None:
+                    success = _check_expression_for_forward_slot_usage(
+                        iteration.indexoffsetOrNull, funDictStack, 
+                        typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                        directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                        False
+                    )
+                    if success == False:
+                        return False
+
+            else: # NIterationOver, hopefully:
+        
+                success = check_expression_for_forward_slot_usage(
+                    iteration.arrayLValue.lValueExpression, funDictStack, 
+                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    False
+                )
+                if success == False:
+                    return False
+
+                if not iteration.indexfactorOrNull is None:
+                    success = _check_expression_for_forward_slot_usage(
+                        iteration.indexfactorOrNull, funDictStack, 
+                        typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                        directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                        False
+                    )
+                    if success == False:
+                        return False
+
+                if not iteration.indexoffsetOrNull is None:
+                    success = _check_expression_for_forward_slot_usage(
+                        iteration.indexoffsetOrNull, funDictStack, 
+                        typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                        directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                        False
+                    )
+                    if success == False:
+                        return False
+
+
+
             if iteration.itName.name in intoNames:   # we call in the same way indepenently if it is an IterationOver or an IterationIn...
                 util.log_error(iteration.itName.lineNr, iteration.itName.rowNr, "Name collision.")
                 return False
             else:
                 intoNames.add(iteration.itName.name)
 
+
+
         success = _slotcollect_statement(
-            statement.block, funDict, mangledModuleName, varBlockNumberList, depth, typeDict, directlyImportedTypesDict, directlyImportedFunsDict, intoNames
+            statement.block, funDictStack, mangledModuleName, varBlockNumberList, depth, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict,
+            intoNames
         )
         if success == False:
             return False
@@ -181,14 +326,41 @@ def _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumber
 
     elif isinstance(statement, NSwitchStatement):
 
+        success = _check_expression_for_forward_slot_usage(
+            statement.switchValue, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
         for case in statement.cases:
-            success = _slotcollect_statement(case.block, funDict, mangledModuleName, varBlockNumberList, depth, typeDict, directlyImportedTypesDict, directlyImportedFunsDict, set([]))
+            for caseValue in case.caseValues:
+                success = _check_expression_for_forward_slot_usage(
+                    caseValue, funDictStack, 
+                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    False
+                )
+                if success == False:
+                    return False
+
+            success = _slotcollect_statement(
+                case.block, funDictStack, mangledModuleName, varBlockNumberList, depth, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
+                directlyImportedFunsDict, otherImportedModulesFunDictDict,
+                set([])
+            )
             if success == False:
                 return False
 
         if not statement.defaultCaseOrNull is None:
             success = _slotcollect_statement(
-                statement.defaultCaseOrNull, funDict, mangledModuleName, varBlockNumberList, depth, typeDict, directlyImportedTypesDict, directlyImportedFunsDict, set([])
+                statement.defaultCaseOrNull, funDictStack, mangledModuleName, varBlockNumberList, depth, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
+                directlyImportedFunsDict, otherImportedModulesFunDictDict,
+                set([])
             )
             if success == False:
                 return False
@@ -197,19 +369,36 @@ def _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumber
 
     elif isinstance(statement, NContenttypeStatement):
 
+        success = _check_expression_for_forward_slot_usage(
+            statement.switchValue, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
         intoNames = set([])
 
         if isinstance(statement.switchValue, NIdentifierExpression) and (statement.switchValue.moduleNameOrNull is None):
             intoNames.add(statement.switchValue.name.name)    # we have to separately check for module name specified when actually generating code........
 
         for case in statement.cases:
-            success = _slotcollect_statement(case.block, funDict, mangledModuleName, varBlockNumberList, depth, typeDict, directlyImportedTypesDict, directlyImportedFunsDict, intoNames)
+            success = _slotcollect_statement(
+                case.block, funDictStack, mangledModuleName, varBlockNumberList, depth, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
+                directlyImportedFunsDict, otherImportedModulesFunDictDict,
+                intoNames
+            )
             if success == False:
                 return False
 
         if not statement.defaultCaseOrNull is None:
             success = _slotcollect_statement(
-                statement.defaultCaseOrNull, funDict, mangledModuleName, varBlockNumberList, depth, typeDict, directlyImportedTypesDict, directlyImportedFunsDict, intoNames
+                statement.defaultCaseOrNull, funDictStack, mangledModuleName, varBlockNumberList, depth, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
+                directlyImportedFunsDict, otherImportedModulesFunDictDict,
+                intoNames
             )
             if success == False:
                 return False
@@ -217,6 +406,19 @@ def _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumber
         return True
 
     elif isinstance(statement, NNormalAssignment):
+
+        # first, we check the right hand side for forward calls. 
+        # It is important that we do this _before_ we add the lhs var declarations, as we don't want recursive assignment to be possible...
+
+        success = _check_expression_for_forward_slot_usage(
+            statement.value, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
 
         for lhsEntry in statement.leftHandSide:
 
@@ -232,11 +434,8 @@ def _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumber
                 elif depth == 0 and lhsEntry.name.name in directlyImportedTypesDict:
                     util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with imported named type.")
                     return False
-                elif lhsEntry.name.name in namesIntoBlockSet:
-                    util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with name going into this block.")
-                    return False
 
-                elif lhsEntry.name.name in funDict:
+                elif lhsEntry.name.name in funDictStack[len(funDictStack) - 1]:
                     util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision.")  # can also be with recently added lhsEntries...
                     return False
                 elif depth == 0 and lhsEntry.name.name in directlyImportedFunsDict:
@@ -250,13 +449,503 @@ def _slotcollect_statement(statement, funDict, mangledModuleName, varBlockNumber
 
                 mangledName = name_mangler.mangle_var_name(lhsEntry.name.name, mangledModuleName, isGlobal, varBlockNumberList[0:depth])
 
-                funDict[lhsEntry.name.name] = VarEntry(mangledName, lhsEntry.isMut, lhsEntry.isInternal, lhsEntry.theType.create_copy())
+                funDictStack[len(funDictStack) - 1][lhsEntry.name.name] = VarEntry(mangledName, lhsEntry.isMut, lhsEntry.isInternal, lhsEntry.theType.create_copy())
 
 
-            else:
+            else: # lValueContainer hopefully...  
+                
+                success = _check_expression_for_forward_slot_usage(
+                    lhsEntry.lValueExpression, funDictStack, 
+                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    False
+                )
+                if success == False:
+                    return False
+
+
+        return True
+
+    elif (isinstance(statement, NModuloAssignment) or
+        isinstance(statement, NMultiplicationAssignment) or
+        isinstance(statement, NDivisionAssignment) or
+        isinstance(statement, NAdditionAssignment) or
+        isinstance(statement, NSubtractionAssignment)
+    ):
+
+        success = _check_expression_for_forward_slot_usage(
+            statement.value, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+
+        for lhsEntry in statement.leftHandSide:
+            success = _check_expression_for_forward_slot_usage(
+                lhsEntry.lValueExpression, funDictStack, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                False
+            )
+            if success == False:
+                return False
+
+        return True
+
+
+    elif isinstance(statement, NReturnStatement):
+
+        for returnExpression in statement.returnExpressions:
+            success = _check_expression_for_forward_slot_usage(
+                returnExpression, funDictStack, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                False
+            )
+            if success == False:
+                return False
+
+        return True
+
+    elif isinstance(statement, NFunctionCallStatement):  # forgot this one...
+
+        success = _check_expression_for_forward_slot_usage(
+            statement.functionCall, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        return True
+
+    else:    
+        return True
+
+
+
+# We cannot use visitor here either because of fromFunctionCallFlag
+
+# Returns True or False depending on success.
+
+def _check_expression_for_forward_slot_usage(
+    expr, funDictStack, 
+    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+    fromFunctionCallFlag
+):
+
+    if isinstance(expr, NIdentifierExpression):
+
+        # first, check the indexings! :
+
+        for indexing in expr.indexings:        
+
+            if isinstance(indexing, NArrayIndexingIndex):
+
+                success = _check_expression_for_forward_slot_usage(
+                    indexing.indexExpression, funDictStack, 
+                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    False
+                )
+                if success == False:
+                    return False
+
+            elif isinstance(indexing, NStructIndexingIndex):
+
                 pass
 
+            elif isinstance(indexing, NVariantBoxCastIndex):
+
+                pass
+
+            elif isinstance(indexing, NTypeClarificationIndex):
+
+                pass
+
+            else:
+                util.log_error(expr.lineNr, expr.rowNr, "Slot collection: SHOULD NOT HAPPEN -- unknown indexing kind.")
+                return False
+
+
+        foundDefinition = None
+
+        if expr.moduleNameOrNull is None:
+
+            for funDict in reversed(funDictStack):
+                if expr.name.name in funDict:
+                    foundDefinition = funDict[expr.name.name]
+                    break
+
+            if foundDefinition is None:
+                if expr.name.name in directlyImportedFunsDict:
+                    foundDefinition = directlyImportedFunsDict[expr.name.name]
+
+        else:
+            if expr.moduleNameOrNull in otherImportedModulesFunDictDict:
+
+                moduleDict = otherImportedModulesFunDictDict[expr.moduleNameOrNull]
+
+                if expr.name.name in moduleDict:
+                    foundDefinition = moduleDict[expr.name.name]            
+
+            else:
+                util.log_error(expr.lineNr, expr.rowNr, "Reference to module that has not been imported.")
+                return False
+                 
+    
+        if foundDefinition is None:
+            util.log_error(expr.lineNr, expr.rowNr, "Usage of name that has not been declared.")
+            return False
+
+
+
+        if isinstance(foundDefinition, NameIntoBlockEntry):
+
+            return True
+
+        elif isinstance(foundDefinition, FunListEntry):
+
+            if fromFunctionCallFlag: # If we come from the name in a funcall, we can allow forward calling in some cases, 
+                                # more checking needing in later passes on this though
+
+                return True
+
+            else:  # else it is a function name used as a function type value... but which of the listed???
+                   # we cannot check this until later when the function value has been resolved together with type checking. So return True here too...
+                
+                return True     
+
+
+
+        elif isinstance(foundDefinition, VarEntry):
+
+            return True  # since we found it simultaneously, it should be declared before...
+
+        elif isinstance(foundDefinition, BlockEntry):
+
+            util.log_error(expr.lineNr, expr.rowNr, "SHOULD NEVER HAPPEN: We found a block entry as the definition during slot forward usage check...")            
+            return False
+
+        elif isinstance(foundDefinition, ParamEntry):
+
+            return True  # since we found it simultaneously, it should be declared before...
+
+        else:
+
+            util.log_error(expr.lineNr, expr.rowNr, "SHOULD NOT HAPPEN: Found an unknown kind of definition entry during slot forward usage check...")        
+            return False
+
+
+
+    elif isinstance(expr, NNilExpression):
+
         return True
 
-    else:
+    elif isinstance(expr, NTrueExpression):
+
         return True
+
+    elif isinstance(expr, NFalseExpression):
+
+        return True
+
+    elif isinstance(expr, NIntegerExpression):
+
+        return True
+
+    elif isinstance(expr, NFloatingPointNumberExpression):
+
+        return True
+
+    elif isinstance(expr, NStringExpression):
+
+        return True
+
+    elif isinstance(expr, NArrayExpressionIndividualValues):
+
+        for subexpr in expr.values:
+            success = _check_expression_for_forward_slot_usage(
+                subexpr, funDictStack, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                False
+            )
+            if success == False:
+                return False
+
+        return True
+
+    elif isinstance(expr, NArrayExpressionNoInitialization):
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.length, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        return True
+
+    elif isinstance(expr, NArrayExpressionRepeatedValue):
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.repeatedValue, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.length, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        return True
+
+    elif isinstance(expr, NStructExpression):
+
+        for post in expr.posts:
+            success = _check_expression_for_forward_slot_usage(
+                post.value, funDictStack, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                False
+            )
+            if success == False:
+                return False
+
+        return True
+
+    elif isinstance(expr, NVariantBoxExpression):
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.expression, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        return True
+
+    elif isinstance(expr, NTypeClarifiedExpression):
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.expression, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        return True
+
+    elif isinstance(expr, NArrayIndexing):
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.arrayExpression, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.indexExpression, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        return True
+
+    elif isinstance(expr, NStructIndexing):
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.structExpression, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        return True
+
+    elif isinstance(expr, NVariantBoxCastExpression):
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.expression, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        return True
+
+    elif isinstance(expr, NAndSymbolExpression) or isinstance(expr, NOrSymbolExpression):
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.leftExpression, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.rightExpression, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        return True
+
+    elif isinstance(expr, NEndExpression):
+
+        util.log_error(expr.lineNr, expr.rowNr, "SHOULD NOT HAPPEN: slot forward usage checking encountered unexpanded end expression...")
+        return False
+
+    elif isinstance(expr, NFunctionCall):
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.functionExpression, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            True   # observe the flag here, hackish...
+        )
+        if success == False:
+            return False
+
+        for arg in expr.args:
+            if isinstance(arg, NNormalArg):
+
+                success = _check_expression_for_forward_slot_usage(
+                    arg.argExpression, funDictStack, 
+                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    False
+                )
+                if success == False:
+                    return False
+
+            else: # NRefArg hopefully
+
+                success = _check_expression_for_forward_slot_usage(
+                    arg.lValueContainer.lValueExpression, funDictStack, 
+                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    False
+                )
+                if success == False:
+                    return False
+
+        return True
+
+    elif isinstance(expr, NIFExpression):
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.condition, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.thenExpression, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.elseExpression, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        return True
+
+    elif isinstance(expr, NSWITCHExpression):
+
+        success = _check_expression_for_forward_slot_usage(
+            expr.switchValue, funDictStack, 
+            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            False
+        )
+        if success == False:
+            return False
+
+        for case in expr.cases:
+            for caseValue in case.caseValues:
+                success = _check_expression_for_forward_slot_usage(
+                    caseValue, funDictStack, 
+                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    False
+                )
+                if success == False:
+                    return False
+
+            success = _check_expression_for_forward_slot_usage(
+                case.value, funDictStack, 
+                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
+                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                False
+            )
+            if success == False:
+                return False
+
+        return True
+
+    elif isinstance(expr, NCONTENTTYPEExpression):
+
+        util.log_error(
+            expr.lineNr, 
+            expr.rowNr, 
+            "STORETYPE expressions are not yet implemented, starting from slot collection pass -- for certain reasons of name-into-expression extra complexity stuff."
+        )
+        return False
+
+    else:
+        util.log_error(expr.lineNr, expr.rowNr, "Type inference strangely encountered unknown expression.")
+        return False
+
+
+
+
+        
+

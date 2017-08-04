@@ -1,6 +1,6 @@
 fn arne(construand f ' int, mu g ' arr int) ' int :
     fn bertrand() :
-        print_utf8("Hello")
+        arne("Hello")
     ;
 
     goose ' bool = true
@@ -8,7 +8,7 @@ fn arne(construand f ' int, mu g ' arr int) ' int :
     // fn f() ' bool :
     // ;
 
-    switch lenny case 3 :
+    switch g case 3 :
         fn lenny() ' int :
         ;
     ; default :
@@ -17,25 +17,31 @@ fn arne(construand f ' int, mu g ' arr int) ' int :
 ;
 
 
+fn swap(ref a ' int, ref b ' int) :
+;
+
 type dict = dict{entries ' arr arr u8}
 
 
-internal inline fn g() :
+internal inline fn g(a ' int, b ' int) :
     swap(ref a, ref b)
 ;
+
+
+mu k ' arr int = [1, 2, 3]
 
 
 type bertrand = nil
 
 
 fn(t, u, v) memtest() :
-    j ' t = k
+    j ' nil = 3
     return
 ;
 
 
 fn arne() ' int :
-    testing(a, b, c)
+    k = g(1, 2, 3)
 ;
 
 

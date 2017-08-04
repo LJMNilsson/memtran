@@ -110,6 +110,22 @@ class ParamEntry(FunListEntryOrSlotEntry): # should not need any mangled name...
         print("")  # newline
 
 
+class NameIntoBlockEntry(FunListEntryOrSlotEntry):
+
+    def __init__(self):
+        pass
+
+    
+    def print_it(self):
+
+        print("INTONAME")  # newline also...
+
+
+
+
+
+
+
 class FunOrTemplateEntry:
     pass
 
