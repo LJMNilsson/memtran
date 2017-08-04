@@ -1003,6 +1003,98 @@ class NParametrizedIdentifierType(NType):
         return visitor.visit(self) 
 
 
+################### INTERNAL TYPES FOR TYPE INFERENCE AID ###################
+
+
+class NAlternativePossibilitiesType(NType):
+
+    # Arraylist<NType> alternativesList;
+    
+    def __init__(self, lineNr, rowNr, alternativesList):
+        self.lineNr = lineNr
+        self.rowNr = rowNr
+        self.alternativesList = alternativesList
+
+
+    def print_it(self):
+        for alt in self.alternativesList:
+            print("ALT: ", end='')
+            alt.print_it()
+
+    def get_line_nr(self):
+        return self.lineNr
+
+    def get_row_nr(self):
+        return self.rowNr
+
+    def create_copy(self):
+        altListCopy = []
+        for alt in self.alternativesList:
+            altListCopy.append(alt.create_copy())
+
+        return NAlternativePossibilitiesType(self.lineNr, self.rowNr, altListCopy)        
+
+    def accept_visitor(self, visitor):
+        for alt in self.alternativesList:
+            success = alt.accept_visitor(visitor)
+            if success == False:
+                return False
+
+        return visitor.visit(self)
+
+
+
+
+class NUnknownType(NType):
+
+    def __init__(self, lineNr, rowNr):
+        self.lineNr = lineNr
+        self.rowNr = rowNr
+
+    def print_it(self):
+        print("UNKNOWN_TYPE", end='')
+
+    def get_line_nr(self):
+        return self.lineNr
+
+    def get_row_nr(self):
+        return self.rowNr
+
+    def create_copy(self):
+        return NUnknownType(self.lineNr, self.rowNr)
+    
+    def accept_visitor(self, visitor):
+        return False     # You should not visit these kinds of types actually
+
+
+
+class NInsertVariantBoxingHere(NType):
+
+    # NType constituentType
+
+    def __init__(self, lineNr, rowNr, superType, constituentType):
+        self.lineNr = lineNr
+        self.rowNr = rowNr
+        self.superType = superType
+        self.constituentType = constituentType
+
+    def print_it(self):
+        print("VARIANT_BOX_ME/", end='')
+        self.constituentType.print_it()
+        print("\\ as ", end='')
+        self.superType.print_it()
+
+    def get_line_nr(self):
+        return self.lineNr
+
+    def get_row_nr(self):
+        return self.rowNr
+
+    def create_copy(self):
+        return NInsertVariantBoxingHere(self.lineNr, self.rowNr, self.superType.create_copy(), self.constituentType.create_copy())
+
+    def accept_visitor(self, visitor):
+        return False     # You should not visit these kinds of types actually
 
 
 #################### EXPRESSIONS ##############################
@@ -1035,6 +1127,8 @@ class NIdentifierExpression(NExpression):
 
     # TODO: Find out and document how the indexings are supposed to be parsed/used
 
+    # String mangledName
+
     def __init__(self, lineNr,
         rowNr,
         moduleNameOrNull,
@@ -1047,7 +1141,7 @@ class NIdentifierExpression(NExpression):
         self.moduleNameOrNull = moduleNameOrNull
         self.name = name
         self.indexings = indexings
-        self.isValidLValue = True
+        self.isValidLValue = True    # TODO: remove all these, not needed for parsing!
 
     
 
@@ -1075,9 +1169,19 @@ class NIdentifierExpression(NExpression):
             indexingsCopy.append(indexing.create_copy())
 
         if self.moduleNameOrNull is None:
-            return NIdentifierExpression(self.lineNr, self.rowNr, None, self.name.create_copy(), indexingsCopy)
+            result = NIdentifierExpression(self.lineNr, self.rowNr, None, self.name.create_copy(), indexingsCopy)
+
+            if hasattr(self, "mangledName"):
+                result.mangledName = self.mangledName
+
+            return result
         else:
-            return NIdentifierExpression(self.lineNr, self.rowNr, self.moduleNameOrNull.create_copy(), self.name.create_copy(), indexingsCopy)        
+            result = NIdentifierExpression(self.lineNr, self.rowNr, self.moduleNameOrNull.create_copy(), self.name.create_copy(), indexingsCopy)        
+
+            if hasattr(self, "mangledName"):
+                result.mangledName = self.mangledName
+
+            return result
 
 
 
@@ -2779,6 +2883,8 @@ class NActualFunctionDeclarationWithDefinition(NStatement):
     # ArrayList<NParam> params;
     # ArrayList<NType> returnTypes;
     # NBlock body;
+
+    # String mangledName;
 
     def __init__(
         self,

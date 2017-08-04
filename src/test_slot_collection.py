@@ -106,7 +106,9 @@ if toks != False:
                             slotBlockNumberList = []  # should hopefully become the same as 'blockNumberList' as we recurse in the same way...
 
                             success = slot_collection.run_pass(
-                                parseResult, funDict, mangledModuleName, slotBlockNumberList, typeDict, directlyImportedTypesDict, directlyImportedFunsDict
+                                parseResult, funDict, mangledModuleName, slotBlockNumberList, 
+                                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
+                                directlyImportedFunsDict, otherImportedModulesFunDictDict
                             )
                 
                             if success:

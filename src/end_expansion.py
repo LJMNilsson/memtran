@@ -95,7 +95,7 @@ def _expand_expression(expr, expanderExpression):
             return False
         
         for arg in expr.args:
-            if type(arg) is NNormalArg:
+            if isinstance(arg, NNormalArg):
 
                 success = _expand_expression(arg.argExpression, expanderExpression)
                 if not success:
