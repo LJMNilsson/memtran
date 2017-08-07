@@ -31,6 +31,13 @@ internal inline fn g(a ' int, b ' int) :
 mu k ' arr int = [1, 2, 3]
 
 
+for i ' int = 13 downto 5,
+    it over k 
+:
+    add_last()
+;
+
+
 type bertrand = nil
 
 

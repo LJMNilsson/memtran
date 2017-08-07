@@ -95,16 +95,20 @@ class BlockEntry(FunListEntryOrSlotEntry):
 
 
 
-class ParamEntry(FunListEntryOrSlotEntry): # should not need any mangled name... I hope
+class ParamEntry(FunListEntryOrSlotEntry):
 
+    # String mangledName;
     # NParam definitionParam;
 
-    def __init__(self, definitionParam):
+    def __init__(self, mangledName, definitionParam):
+        self.mangledName = mangledName
         self.definitionParam = definitionParam
 
     def print_it(self):
 
-        print("PARAM: definition: ", end='')
+        print("PARAM: mangled name:", end ='')
+        print(self.mangledName, end='')
+        print(" definition: ", end='')
         self.definitionParam.print_it()
 
         print("")  # newline
@@ -112,13 +116,17 @@ class ParamEntry(FunListEntryOrSlotEntry): # should not need any mangled name...
 
 class NameIntoBlockEntry(FunListEntryOrSlotEntry):
 
-    def __init__(self):
-        pass
+    # NType theType
+
+    def __init__(self, theType):
+        self.theType = theType
 
     
     def print_it(self):
 
-        print("INTONAME")  # newline also...
+        print("INTONAME ' ", end='')
+        self.theType.print_it()
+        print("")  # newline
 
 
 
@@ -224,8 +232,52 @@ class TemplateEntry(FunOrTemplateEntry):
 
 class SpecializedTemplateEntry(FunOrTemplateEntry):
 
-    # TODO
-    pass
+    # String templateMangledName;   # let's see if this is enough to find it
+    # String mangledName;
+    # FunSignature signature;
+    # Dictionary<FunListEntryOrSlotEntry> localDict;
+    # funsIndex
+
+    # ADDED IN LATER PASSES:
+    
+    # forwardDependenciesList
+    # slotList
+    
+    def __init__(self, templateMangledName, mangledName, signature, localDict, funsIndex):
+        self.templateMangledName = templateMangledName
+        self.mangledName = mangledName
+        self.signature = signature
+        self.localDict = localDict
+        self.funsIndex = funsIndex
+
+    
+    def print_it(self):
+        print("TSPEC template mangled name: ", end='')
+
+        print(self.templateMangledName, end='')
+
+        print(" mangled name: ", end='')
+
+        print(self.mangledName, end='')
+
+        print(" signature: ", end='')
+
+        self.signature.print_it()
+
+        print(" funIndex: ", end='')
+
+        print(str(self.funsIndex), end='')    
+
+        print(" local dict: {")
+
+        for key, value in self.localDict.items():
+
+            print(key, end='')
+            print(": ", end='')
+            value.print_it()
+            print("") # newline
+
+        print("}")
 
 
 

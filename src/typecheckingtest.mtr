@@ -1,0 +1,30 @@
+
+type either_or = arr f64 / arr int / nil
+
+type str = arr u8
+
+type parametrized(t) = arr t
+
+my_string ' str = "Hello World!\n"
+
+s ' parametrized(u8) = "\n!dlorW olleH"
+
+c ' u8 = s[99]
+
+type my_array_type = arr int
+
+a ' my_array_type = [42, 24]
+
+b ' int = a[24]
+
+
+test_array ' either_or = a
+
+
+/*
+for it over a,
+    jt in a indexfactor -1 indexoffset 2 
+:
+    it = jt
+;
+*/

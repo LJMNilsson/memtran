@@ -30,12 +30,13 @@ from fun_dict_stuff import *
 
 # Returns True or False depending on success
 
-# This pass also simultaneously checks for forward usage of slots (TODO)
+# This pass also simultaneously checks for forward usage of slots (not functions though!!! check for those later please!)
 
 def run_pass(
     programAST, funDict, mangledModuleName, varBlockNumberList, 
-    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
-    directlyImportedFunsDict, otherImportedModulesFunDictDict
+    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+    builtInFunsDict,
+    directlyImportedFunsDictDict, otherImportedModulesFunDictDict
 ): 
 
     funDictStack = [funDict]
@@ -43,9 +44,10 @@ def run_pass(
     for statement in programAST.statements:
         success = _slotcollect_statement(
             statement, funDictStack, mangledModuleName, varBlockNumberList, 0, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict,
-            set([])
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+            {}
         )
         if success == False:
             return False        
@@ -58,8 +60,9 @@ def run_pass(
 
 def _slotcollect_statement(
     statement, funDictStack, mangledModuleName, varBlockNumberList, depth, 
-    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-    directlyImportedFunsDict, otherImportedModulesFunDictDict,
+    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+    builtInFunsDict,
+    directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
     namesIntoBlock
 ):
 
@@ -92,15 +95,16 @@ def _slotcollect_statement(
                 util.log_error(param.name.lineNr, param.name.rowNr, "Name collision. #7979")  # can also be with recently added lhsEntries...
                 return False
             
-            funcEntry.localDict[param.name.name] = ParamEntry(param.create_copy())
+            funcEntry.localDict[param.name.name] = ParamEntry(name_mangler.mangle_param_name(param.name.name), param.create_copy())
 
         
         for stmt in actual.body.statements:
             success = _slotcollect_statement(
                 stmt, funDictStack + [funcEntry.localDict], mangledModuleName, varBlockNumberList, depth + 1, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
-                directlyImportedFunsDict, otherImportedModulesFunDictDict,
-                set([])
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                builtInFunsDict, 
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                {}
             )
             if success == False:
                 return False
@@ -118,12 +122,16 @@ def _slotcollect_statement(
             varBlockNumberList[depth] += 1
 
 
-        for nameIntoBlock in namesIntoBlock:
-            if nameIntoBlock in funDictStack[len(funDictStack) - 1][str(varBlockNumberlist[depth])].localDict:
+        for nameIntoBlock, entry in namesIntoBlock.items():
+            if nameIntoBlock in funDictStack[len(funDictStack) - 1][str(varBlockNumberList[depth])].localDict:
                 util.log_error(0, 0, "Name collision with name into block: " + nameIntoBlock) # should already be checked for though
                 return False
             else:
-                funDictStack[len(funDictStack) - 1][str(varBlockNumberList[depth])].localDict[nameIntoBlock] = NameIntoBlockEntry()            
+                funDictStack[len(funDictStack) - 1][str(varBlockNumberList[depth])].localDict[nameIntoBlock] = entry            
+
+
+        statement.blockEntryNumStr = str(varBlockNumberList[depth])   # set this so that name into blockers can find the block later when specifiying their type just in time...
+
 
         for stmt in statement.statements:
             success = _slotcollect_statement(
@@ -133,9 +141,10 @@ def _slotcollect_statement(
                 varBlockNumberList, 
                 depth + 1, 
                 typeDict, 
-                directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
-                directlyImportedFunsDict, otherImportedModulesFunDictDict,
-                set([])
+                directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                builtInFunsDict, 
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                {}
             )
             if success == False:
                 return False            
@@ -147,8 +156,9 @@ def _slotcollect_statement(
 
         success = _check_expression_for_forward_slot_usage(
             statement.condition, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -156,9 +166,10 @@ def _slotcollect_statement(
 
         success = _slotcollect_statement(
             statement.ifBlock, funDictStack, mangledModuleName, varBlockNumberList, depth, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict,
-            set([])
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+            {}
         )
         if success == False:
             return False
@@ -166,18 +177,20 @@ def _slotcollect_statement(
         for elseIfClause in statement.elseIfClauses:
             success = _check_expression_for_forward_slot_usage(
                 elseIfClause.condition, funDictStack, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                builtInFunsDict, 
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                 False
             )
             if success == False:
                 return False
 
             success = _slotcollect_statement(
-                statement.elseIfClause, funDictStack, mangledModuleName, varBlockNumberList, depth, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
-                directlyImportedFunsDict, otherImportedModulesFunDictDict,
-                set([])
+                elseIfClause.block, funDictStack, mangledModuleName, varBlockNumberList, depth, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                builtInFunsDict,
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                {}
             )
             if success == False:
                 return False
@@ -185,9 +198,10 @@ def _slotcollect_statement(
         if not statement.elseBlockOrNull is None:
             success = _slotcollect_statement(
                 statement.elseBlockOrNull, funDictStack, mangledModuleName, varBlockNumberList, depth, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                directlyImportedFunsDict, otherImportedModulesFunDictDict,
-                set([])
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                builtInFunsDict,
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                {}
             )
             if success == False:
                 return False
@@ -202,9 +216,10 @@ def _slotcollect_statement(
 
         success = _slotcollect_statement(
             statement.block, funDictStack, mangledModuleName, varBlockNumberList, depth, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
-            directlyImportedFunsDict, otherImportedModulesFunDictDict,
-            set([])
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict, 
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+            {}
         )
         if success == False:
             return False
@@ -213,13 +228,14 @@ def _slotcollect_statement(
 
     elif isinstance(statement, NForStatement):
     
-        intoNames = set([])        
+        intoNames = {}        
 
         if not statement.rangeOrNull is None:
             success = _check_expression_for_forward_slot_usage(
                 statement.rangeOrNull.rangeFrom, funDictStack, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                builtInFunsDict,
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                 False
             )
             if success == False:
@@ -227,8 +243,9 @@ def _slotcollect_statement(
 
             success = _check_expression_for_forward_slot_usage(
                 statement.rangeOrNull.rangeTo, funDictStack, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                builtInFunsDict,
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                 False
             )
             if success == False:
@@ -238,15 +255,16 @@ def _slotcollect_statement(
                 util.log_error(statement.rangeOrNull.counterName.lineNr, statement.rangeOrNull.counterName.rowNr, "Name collision.")
                 return False
             else:
-                intoNames.add(statement.rangeOrNull.counterName.name)
+                intoNames[statement.rangeOrNull.counterName.name] = NameIntoBlockEntry(statement.rangeOrNull.counterType.create_copy())
 
 
         for iteration in statement.iterations:
             if isinstance(iteration, NIterationIn):
                 success = _check_expression_for_forward_slot_usage(
                     iteration.arrayExpression, funDictStack, 
-                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                    builtInFunsDict,
+                    directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                     False
                 )
                 if success == False:
@@ -255,8 +273,9 @@ def _slotcollect_statement(
                 if not iteration.indexfactorOrNull is None:
                     success = _check_expression_for_forward_slot_usage(
                         iteration.indexfactorOrNull, funDictStack, 
-                        typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                        directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                        builtInFunsDict,
+                        directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                         False
                     )
                     if success == False:
@@ -265,8 +284,9 @@ def _slotcollect_statement(
                 if not iteration.indexoffsetOrNull is None:
                     success = _check_expression_for_forward_slot_usage(
                         iteration.indexoffsetOrNull, funDictStack, 
-                        typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                        directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                        builtInFunsDict,
+                        directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                         False
                     )
                     if success == False:
@@ -274,10 +294,11 @@ def _slotcollect_statement(
 
             else: # NIterationOver, hopefully:
         
-                success = check_expression_for_forward_slot_usage(
+                success = _check_expression_for_forward_slot_usage(
                     iteration.arrayLValue.lValueExpression, funDictStack, 
-                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                    builtInFunsDict,
+                    directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                     False
                 )
                 if success == False:
@@ -286,8 +307,9 @@ def _slotcollect_statement(
                 if not iteration.indexfactorOrNull is None:
                     success = _check_expression_for_forward_slot_usage(
                         iteration.indexfactorOrNull, funDictStack, 
-                        typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                        directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                        builtInFunsDict,
+                        directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                         False
                     )
                     if success == False:
@@ -296,8 +318,9 @@ def _slotcollect_statement(
                 if not iteration.indexoffsetOrNull is None:
                     success = _check_expression_for_forward_slot_usage(
                         iteration.indexoffsetOrNull, funDictStack, 
-                        typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                        directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                        builtInFunsDict,
+                        directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                         False
                     )
                     if success == False:
@@ -309,14 +332,19 @@ def _slotcollect_statement(
                 util.log_error(iteration.itName.lineNr, iteration.itName.rowNr, "Name collision.")
                 return False
             else:
-                intoNames.add(iteration.itName.name)
-
+                if iteration.itTypeOrNull is None:
+                    intoNames[iteration.itName.name] = NameIntoBlockEntry(
+                        NStructType(iteration.lineNr, iteration.rowNr, NIdentifier(iteration.lineNr, iteration.rowNr, "TYPE_UNKNOWN_AS_YET"), [])
+                    )
+                else:
+                    intoNames[iteration.itName.name] = NameIntoBlockEntry(iteration.itTypeOrNull.create_copy())
 
 
         success = _slotcollect_statement(
             statement.block, funDictStack, mangledModuleName, varBlockNumberList, depth, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict,
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
             intoNames
         )
         if success == False:
@@ -328,8 +356,9 @@ def _slotcollect_statement(
 
         success = _check_expression_for_forward_slot_usage(
             statement.switchValue, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -339,8 +368,9 @@ def _slotcollect_statement(
             for caseValue in case.caseValues:
                 success = _check_expression_for_forward_slot_usage(
                     caseValue, funDictStack, 
-                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                    builtInFunsDict,
+                    directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                     False
                 )
                 if success == False:
@@ -348,9 +378,10 @@ def _slotcollect_statement(
 
             success = _slotcollect_statement(
                 case.block, funDictStack, mangledModuleName, varBlockNumberList, depth, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
-                directlyImportedFunsDict, otherImportedModulesFunDictDict,
-                set([])
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                builtInFunsDict,
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                {}
             )
             if success == False:
                 return False
@@ -358,9 +389,10 @@ def _slotcollect_statement(
         if not statement.defaultCaseOrNull is None:
             success = _slotcollect_statement(
                 statement.defaultCaseOrNull, funDictStack, mangledModuleName, varBlockNumberList, depth, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
-                directlyImportedFunsDict, otherImportedModulesFunDictDict,
-                set([])
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                builtInFunsDict,
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                {}
             )
             if success == False:
                 return False
@@ -371,23 +403,29 @@ def _slotcollect_statement(
 
         success = _check_expression_for_forward_slot_usage(
             statement.switchValue, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
             return False
 
-        intoNames = set([])
+        intoNames = {}
 
-        if isinstance(statement.switchValue, NIdentifierExpression) and (statement.switchValue.moduleNameOrNull is None):
-            intoNames.add(statement.switchValue.name.name)    # we have to separately check for module name specified when actually generating code........
+        # if isinstance(statement.switchValue, NIdentifierExpression) and (statement.switchValue.moduleNameOrNull is None):
+        #     intoNames[statement.switchValue.name.name] = NameIntoBlockEntry(NUnknownType(statement.switchValue.lineNr, statement.switchValue.rowNr))    
+            # we have to separately check for module name specified when actually generating code........
+
+            # we have to expand this statement simultaneously with type checking and annotation, so the above is probably bogus
+            # since it isn't a proper new into-name... so it is commented out for now.
 
         for case in statement.cases:
             success = _slotcollect_statement(
                 case.block, funDictStack, mangledModuleName, varBlockNumberList, depth, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
-                directlyImportedFunsDict, otherImportedModulesFunDictDict,
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                builtInFunsDict,
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
                 intoNames
             )
             if success == False:
@@ -396,8 +434,9 @@ def _slotcollect_statement(
         if not statement.defaultCaseOrNull is None:
             success = _slotcollect_statement(
                 statement.defaultCaseOrNull, funDictStack, mangledModuleName, varBlockNumberList, depth, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict, 
-                directlyImportedFunsDict, otherImportedModulesFunDictDict,
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                builtInFunsDict, 
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
                 intoNames
             )
             if success == False:
@@ -412,8 +451,9 @@ def _slotcollect_statement(
 
         success = _check_expression_for_forward_slot_usage(
             statement.value, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -431,16 +471,51 @@ def _slotcollect_statement(
                 elif depth == 0 and lhsEntry.name.name in typeDict:
                     util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with named type.")
                     return False        
-                elif depth == 0 and lhsEntry.name.name in directlyImportedTypesDict:
-                    util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with imported named type.")
-                    return False
 
                 elif lhsEntry.name.name in funDictStack[len(funDictStack) - 1]:
                     util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision.")  # can also be with recently added lhsEntries...
                     return False
-                elif depth == 0 and lhsEntry.name.name in directlyImportedFunsDict:
-                    util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with imported name")    
+                    
+                elif depth == 0 and lhsEntry.name.name in builtInFunsDict:
+                    util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with built-in function.")
                     return False
+                elif depth == 0:
+                    for moduleName, directlyImportedTypesDict in directlyImportedTypesDictDict.items():
+                        if lhsEntry.name.name in directlyImportedTypesDict:                            
+                            util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with imported named type.")
+                            return False
+
+                    for moduleName, directlyImportedFunsDict in directlyImportedFunsDictDict.items():
+                        if lhsEntry.name.name in directlyImportedFunsDict:
+                            entry = directlyImportedFunsDict[lhsEntry.name.name]
+
+                            if isinstance(entry, FunListEntry):
+                                for someFunOrTemplate in entry.funEntries:
+                                    if not someFunOrTemplate.signature.isInternal:
+                                        util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with imported function or template.")
+                                        return False
+
+                            elif isinstance(entry, VarEntry):
+                                if not entry.isInternal:
+                                    util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with imported name.")    
+                                    return False
+
+                            elif isinstance(entry, BlockEntry):
+                                util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with block. SHOULD NOT HAPPEN.")
+                                return False
+
+                            elif isinstance(entry, ParamEntry):
+                                util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with global param...??? SHOULD NOT HAPPEN.")
+                                return False
+
+                            elif isinstance(entry, NameIntoBlockEntry):
+                                util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with global name into block...??? SHOULD NOT HAPPEN.")
+                                return False
+
+                            else:
+                                util.log_error(lhsEntry.name.lineNr, lhsEntry.name.rowNr, "Name collision with unknown entry. SHOULD NOT HAPPEN.")
+                                return False                           
+
 
                 
                 isGlobal = True
@@ -456,8 +531,9 @@ def _slotcollect_statement(
                 
                 success = _check_expression_for_forward_slot_usage(
                     lhsEntry.lValueExpression, funDictStack, 
-                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                    builtInFunsDict,
+                    directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                     False
                 )
                 if success == False:
@@ -475,8 +551,9 @@ def _slotcollect_statement(
 
         success = _check_expression_for_forward_slot_usage(
             statement.value, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -486,8 +563,9 @@ def _slotcollect_statement(
         for lhsEntry in statement.leftHandSide:
             success = _check_expression_for_forward_slot_usage(
                 lhsEntry.lValueExpression, funDictStack, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                builtInFunsDict,
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                 False
             )
             if success == False:
@@ -501,8 +579,9 @@ def _slotcollect_statement(
         for returnExpression in statement.returnExpressions:
             success = _check_expression_for_forward_slot_usage(
                 returnExpression, funDictStack, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                builtInFunsDict,
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                 False
             )
             if success == False:
@@ -514,8 +593,9 @@ def _slotcollect_statement(
 
         success = _check_expression_for_forward_slot_usage(
             statement.functionCall, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -528,14 +608,20 @@ def _slotcollect_statement(
 
 
 
+
+
+
+
+
 # We cannot use visitor here either because of fromFunctionCallFlag
 
 # Returns True or False depending on success.
 
 def _check_expression_for_forward_slot_usage(
     expr, funDictStack, 
-    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+    builtInFunsDict,    
+    directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
     fromFunctionCallFlag
 ):
 
@@ -549,8 +635,9 @@ def _check_expression_for_forward_slot_usage(
 
                 success = _check_expression_for_forward_slot_usage(
                     indexing.indexExpression, funDictStack, 
-                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                    builtInFunsDict,
+                    directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                     False
                 )
                 if success == False:
@@ -583,8 +670,31 @@ def _check_expression_for_forward_slot_usage(
                     break
 
             if foundDefinition is None:
-                if expr.name.name in directlyImportedFunsDict:
-                    foundDefinition = directlyImportedFunsDict[expr.name.name]
+                for moduleName, directlyImportedFunsDict in directlyImportedFunsDictDict.items():
+                    if expr.name.name in directlyImportedFunsDict:
+                        entry = directlyImportedFunsDict[expr.name.name]
+
+                        if isinstance(entry, FunListEntry):
+                            for someFunOrTemplate in entry.funEntries:
+                                if not someFunOrTemplate.signature.isInternal:
+                                    foundDefinition = entry
+                                    break
+                            
+                            if not foundDefinition is None:
+                                break     # instead of labeled break right above, which is not available
+    
+                        elif isinstance(entry, VarEntry):
+                            if not entry.isInternal:
+                                foundDefinition = entry
+                                break
+
+                        else:
+                            util.log_error(expr.lineNr, expr.rowNr, "Undetermined definition of identifier expression. SHOULD NOT HAPPEN")
+                            return False                
+
+            if foundDefinition is None:
+                if expr.name.name in builtInFunsDict:
+                    foundDefinition = builtInFunsDict[expr.name.name]
 
         else:
             if expr.moduleNameOrNull in otherImportedModulesFunDictDict:
@@ -592,7 +702,22 @@ def _check_expression_for_forward_slot_usage(
                 moduleDict = otherImportedModulesFunDictDict[expr.moduleNameOrNull]
 
                 if expr.name.name in moduleDict:
-                    foundDefinition = moduleDict[expr.name.name]            
+                    entry = moduleDict[expr.name.name]
+
+                    if isinstance(entry, FunListEntry):
+                        for someFunOrTemplate in entry.funEntries:
+                            if not someFunOrTemplate.signature.isInternal:
+                                foundDefinition = entry
+                                break
+
+                    elif isinstance(entry, VarEntry):
+                        if not entry.isInternal:
+                            foundDefinition = entry
+                    
+                    else:            
+                        util.log_error(expr.lineNr, expr.rowNr, "Undetermined definition of module specified identifier expression. SHOULD NOT HAPPEN")
+                        return False   
+
 
             else:
                 util.log_error(expr.lineNr, expr.rowNr, "Reference to module that has not been imported.")
@@ -672,8 +797,9 @@ def _check_expression_for_forward_slot_usage(
         for subexpr in expr.values:
             success = _check_expression_for_forward_slot_usage(
                 subexpr, funDictStack, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                builtInFunsDict,
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                 False
             )
             if success == False:
@@ -685,8 +811,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.length, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -698,8 +825,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.repeatedValue, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -707,8 +835,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.length, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -721,8 +850,9 @@ def _check_expression_for_forward_slot_usage(
         for post in expr.posts:
             success = _check_expression_for_forward_slot_usage(
                 post.value, funDictStack, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                builtInFunsDict,
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                 False
             )
             if success == False:
@@ -734,8 +864,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.expression, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,    
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -747,8 +878,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.expression, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -760,8 +892,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.arrayExpression, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -769,8 +902,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.indexExpression, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -782,8 +916,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.structExpression, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -795,8 +930,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.expression, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -808,8 +944,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.leftExpression, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -817,8 +954,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.rightExpression, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -835,8 +973,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.functionExpression, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             True   # observe the flag here, hackish...
         )
         if success == False:
@@ -847,8 +986,9 @@ def _check_expression_for_forward_slot_usage(
 
                 success = _check_expression_for_forward_slot_usage(
                     arg.argExpression, funDictStack, 
-                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                    builtInFunsDict,
+                    directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                     False
                 )
                 if success == False:
@@ -858,8 +998,9 @@ def _check_expression_for_forward_slot_usage(
 
                 success = _check_expression_for_forward_slot_usage(
                     arg.lValueContainer.lValueExpression, funDictStack, 
-                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                    builtInFunsDict,
+                    directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                     False
                 )
                 if success == False:
@@ -871,8 +1012,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.condition, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -880,8 +1022,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.thenExpression, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -889,8 +1032,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.elseExpression, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -902,8 +1046,9 @@ def _check_expression_for_forward_slot_usage(
 
         success = _check_expression_for_forward_slot_usage(
             expr.switchValue, funDictStack, 
-            typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-            directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+            builtInFunsDict,
+            directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
             False
         )
         if success == False:
@@ -913,8 +1058,9 @@ def _check_expression_for_forward_slot_usage(
             for caseValue in case.caseValues:
                 success = _check_expression_for_forward_slot_usage(
                     caseValue, funDictStack, 
-                    typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                    directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                    builtInFunsDict,
+                    directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                     False
                 )
                 if success == False:
@@ -922,8 +1068,9 @@ def _check_expression_for_forward_slot_usage(
 
             success = _check_expression_for_forward_slot_usage(
                 case.value, funDictStack, 
-                typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict,
-                directlyImportedFunsDict, otherImportedModulesFunDictDict, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
+                builtInFunsDict,
+                directlyImportedFunsDictDict, otherImportedModulesFunDictDict, 
                 False
             )
             if success == False:

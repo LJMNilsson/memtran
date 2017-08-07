@@ -28,7 +28,7 @@ import name_mangler
 # Returns False if a duplicate was found! 
 # TODO: Add functionality to check for duplicate names in other modules (directly) imported
 
-def gather(astProgram, mangledModuleName, directlyImportedTypesDict):
+def gather(astProgram, mangledModuleName, directlyImportedTypesDictDict):
 
     typeDict = {}
 
@@ -41,12 +41,15 @@ def gather(astProgram, mangledModuleName, directlyImportedTypesDict):
                 util.log_error(statement.name.lineNr, statement.name.typeNr, "Name collision.")
                 return False
 
-            elif statement.name.name in directlyImportedTypesDict:
-
-                util.log_error(statement.name.lineNr, statement.name.typeNr, "Name collision with directly imported type.")
-                return False
-
             else:
+
+                for moduleName, directlyImportedTypesDict in directlyImportedTypesDictDict.items():
+
+                    if statement.name.name in directlyImportedTypesDict:
+
+                        util.log_error(statement.name.lineNr, statement.name.typeNr, "Name collision with directly imported type.")
+                        return False
+               
 
                 dictAddition = statement.create_copy()
 
@@ -65,12 +68,12 @@ class _CheckTypesVisitor(AbstractASTVisitor):
     # TODO: add the whole module identifier business!
 
 
-    def __init__(self, allowedParamNamesList, typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict):
+    def __init__(self, allowedParamNamesList, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict):
             
 
         self.allowedParamNamesSet = set(allowedParamNamesList)
         self.typeDict = typeDict
-        self.directlyImportedTypesDict = directlyImportedTypesDict
+        self.directlyImportedTypesDictDict = directlyImportedTypesDictDict
         self.otherImportedModulesTypeDictDict = otherImportedModulesTypeDictDict
         
 
@@ -91,17 +94,19 @@ class _CheckTypesVisitor(AbstractASTVisitor):
                 elif node.name.name in self.typeDict:
                     found = True
                     typeParamsOrNull = self.typeDict[node.name.name].paramsOrNull
-
+          
                 else:
-                    found = False
-                    typeParamsOrNull = None   # dummy
+                    for moduleName, directlyImportedTypesDict in self.directlyImportedTypesDictDict:
+                        if node.name.name in directlyImportedTypesDict:
+                            found = True
+                            typeParamsOrNull = directlyImportedTypesDict[node.name.name].paramsOrNull
 
             else:
-                if not node.moduleNameOrNull in self.otherImportedModulesTypeDictDict:
+                if not node.moduleNameOrNull.name in self.otherImportedModulesTypeDictDict.items():
                     util.log_error(node.lineNr, node.rowNr, "Using a non-imported module name.")
                     return False
 
-                moduleTypeDict = self.otherImportedModulesTypeDictDict[node.moduleNameOrNull]
+                moduleTypeDict = self.otherImportedModulesTypeDictDict[node.moduleNameOrNull.name]
 
                 if node.name.name in moduleTypeDict:
                     found = True
@@ -133,8 +138,6 @@ class _CheckTypesVisitor(AbstractASTVisitor):
 
             if node.moduleNameOrNull is None:
 
-                # util.log_debug("TJOSAN!")
-
                 if node.name.name in self.allowedParamNamesSet:
                     found = True
                     typeParamsOrNull = None    
@@ -144,15 +147,17 @@ class _CheckTypesVisitor(AbstractASTVisitor):
                     typeParamsOrNull = self.typeDict[node.name.name].paramsOrNull
 
                 else:
-                    found = False
-                    typeParamsOrNull = None # dummy
+                    for moduleName, directlyImportedTypesDict in self.directlyImportedTypesDictDict.items():
+                        if node.name.name in directlyImportedTypesDict:
+                            found = True
+                            typeParamsOrNull = directlyImportedTypesDict[node.name.name].paramsOrNull
 
             else:
-                if not node.moduleNameOrNull in self.otherImportedModulesTypeDictDict:
+                if not node.moduleNameOrNull.name in self.otherImportedModulesTypeDictDict:
                     util.log_error(node.lineNr, node.rowNr, "Using a non-imported module name.")
                     return False
 
-                moduleTypeDict = self.otherImportedModulesTypeDictDict[node.moduleNameOrNull]
+                moduleTypeDict = self.otherImportedModulesTypeDictDict[node.moduleNameOrNull.name]
 
                 if node.name.name in moduleTypeDict:
                     found = True
@@ -186,7 +191,7 @@ class _CheckTypesVisitor(AbstractASTVisitor):
 # Performs additional checks. Returns True for pass, or False for error.
 # TODO: Allow mathching against module imported names
 
-def check(typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict):
+def check(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict):
 
     for typeName, declaration in typeDict.items():
 
@@ -196,7 +201,7 @@ def check(typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict)
             for ident in declaration.paramsOrNull:
                 params.append(ident.name)        
 
-        checker = _CheckTypesVisitor(params, typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict)
+        checker = _CheckTypesVisitor(params, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
         success = declaration.theType.accept_visitor(checker)
         if success == False:

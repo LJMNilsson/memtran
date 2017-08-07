@@ -358,7 +358,7 @@ def _expand_statement(statement):
                         return False
 
                 if not iteration.indexoffsetOrNull is None:
-                    success = _expand_expression(iteration.indexOffsetOrNull, None)
+                    success = _expand_expression(iteration.indexoffsetOrNull, None)
                     if not success:
                         return False
                             
@@ -374,7 +374,7 @@ def _expand_statement(statement):
                         return False
 
                 if not iteration.indexoffsetOrNull is None:
-                    success = _expand_expression(iteration.indexOffsetOrNull, None)
+                    success = _expand_expression(iteration.indexoffsetOrNull, None)
                     if not success:
                         return False
 
