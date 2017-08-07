@@ -28,10 +28,11 @@ import type_collection
 import fun_collection   # also collects templates, unspecialized
 import built_in_functions_stuff
 import slot_collection
+import type_inference_and_annotation
 
-util.currentFileName = "slotcollectiontest.mtr"
+util.currentFileName = "typecheckingtest.mtr"
 
-toks = lexer.lex_file("slotcollectiontest.mtr")
+toks = lexer.lex_file("typecheckingtest.mtr")
 
 if toks != False:
     print("LEXING SUCCESSFUL!")
@@ -65,7 +66,7 @@ if toks != False:
             parseResult.print_it()
             print("") # newline
 
-            mangledModuleName = name_mangler.mangle_basic_name("slotcollectiontest")
+            mangledModuleName = name_mangler.mangle_basic_name("typecheckingtest")
 
             # TODO: parse and collect module .mh header files here
 
@@ -123,8 +124,11 @@ if toks != False:
                                     value.print_it()
                                     print("")  # newline
 
+                                success = type_inference_and_annotation.run_pass(
+                                    parseResult, 
+                                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                                    funDict, built_in_functions_stuff.builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict
+                                )
 
-
-
-
-                                          
+                                if success:
+                                    print("TYPE CHECKING SUCCESSFUL!")

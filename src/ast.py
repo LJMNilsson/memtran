@@ -61,6 +61,9 @@ class NIdentifier:
 ##################### TYPES ###################################
 
 
+
+
+
 class NType:
     # abstract void print();
 
@@ -70,7 +73,9 @@ class NType:
 
     # abstract NType createCopy();
 
-    # abstract Any (default boolean) accept_visitor(AbstractASTVisitor visitor); 
+    # abstract Any (default boolean) accept_visitor(AbstractASTVisitor visitor);
+
+    
 
     pass
 
@@ -132,8 +137,38 @@ class NIdentifierType(NType):
         if success == False:
             return False
 
-        return visitor.visit(self) 
-    
+        return visitor.visit(self)
+ 
+
+
+    def get_definition(self, typeDict, directlyImportedTypesDict, otherImportedModulesTypeDictDict):      
+
+        if self.moduleNameOrNull is None:
+           
+            if self.name.name in typeDict:
+                return typeDict[self.name.name].theType
+            elif self.name.name in directlyImportedTypesDict:
+                return directlyImportedTypesDict[self.name.name].theType
+            else:
+                util.log_error(self.lineNr, self.rowNr, "Type match: named type's definition not found. SHOULD NOT HAPPEN.")     
+                return NStructType(self.lineNr, self.rowNr, NIdentifier(self.lineNr, self.rowNr, "ERRORRR"), [])
+
+        else:                
+
+            if self.moduleNameOrNull.name in otherImportedModulesTypeDictDict:
+                moduleTypeDict = otherImportedModulesTypeDictDict[self.moduleNameOrNull.name]
+                
+                if self.name.name in moduleTypeDict:
+                    return moduleTypeDict[self.name.name].theType                    
+                else:
+                    util.log_error(self.lineNr, self.rowNr, "Named type's definition not found for type match. SHOULD NOT HAPPEN #18")
+                    return NStructType(self.lineNr, self.rowNr, NIdentifier(self.lineNr, self.rowNr, "ERRORRR"), [])              
+
+            else:
+                util.log_error(self.lineNr, self.rowNr, "Module not found for named type match. SHOULD NOT HAPPEN #8")
+                return NStructType(self.lineNr, self.rowNr, NIdentifier(self.lineNr, self.rowNr, "ERRORRR"), [])
+
+
 
 
 class NNilType(NType):
@@ -169,6 +204,13 @@ class NNilType(NType):
 
 
 
+
+
+
+
+
+
+
 class NBoolType(NType):
 
     # long lineNr;
@@ -197,8 +239,15 @@ class NBoolType(NType):
 
     def accept_visitor(self, visitor):
         return visitor.visit(self)     # concrete element
+
+
+
     
     
+
+
+
+
 
 class NI8Type(NType):
 
@@ -227,6 +276,8 @@ class NI8Type(NType):
 
 
 
+
+
 class NI16Type(NType):
 
     # long lineNr;
@@ -251,6 +302,11 @@ class NI16Type(NType):
 
     def accept_visitor(self, visitor):
         return visitor.visit(self)     # concrete element
+
+
+
+
+
 
 
 
@@ -284,6 +340,10 @@ class NI32Type(NType):
 
 
 
+
+
+
+
 class NI64Type(NType):
 
     # long lineNr;
@@ -308,6 +368,9 @@ class NI64Type(NType):
 
     def accept_visitor(self, visitor):
         return visitor.visit(self)     # concrete element
+
+
+
 
 
 
@@ -340,6 +403,9 @@ class NISizeType(NType):
 
 
 
+
+
+
 class NU8Type(NType):
 
     # long lineNr;
@@ -364,6 +430,10 @@ class NU8Type(NType):
 
     def accept_visitor(self, visitor):
         return visitor.visit(self)    # concrete element
+
+
+
+
 
 
 
@@ -398,6 +468,10 @@ class NU16Type(NType):
 
 
 
+
+
+
+
 class NU32Type(NType):
 
     # long lineNr;
@@ -422,6 +496,10 @@ class NU32Type(NType):
 
     def accept_visitor(self, visitor):
         return visitor.visit(self)     # concrete element
+
+
+
+
 
 
 
@@ -454,6 +532,11 @@ class NU64Type(NType):
 
 
 
+
+
+
+
+
 class NUSizeType(NType):
 
     # long lineNr;
@@ -478,6 +561,11 @@ class NUSizeType(NType):
 
     def accept_visitor(self, visitor):
         return visitor.visit(self)     # concrete element
+
+
+
+
+
 
 
 
@@ -510,6 +598,11 @@ class NF32Type(NType):
 
 
 
+
+
+
+
+
 class NF64Type(NType):
 
     # long lineNr;
@@ -534,6 +627,10 @@ class NF64Type(NType):
 
     def accept_visitor(self, visitor):
         return visitor.visit(self)     # concrete element
+
+
+
+
 
 
 
@@ -576,6 +673,9 @@ class NDynamicArrayType(NType):
             return False
 
         return visitor.visit(self) 
+
+
+
 
 
 
@@ -689,6 +789,11 @@ class NStructType(NType):
         return visitor.visit(self)
 
 
+
+
+
+
+
 class NVariantBoxType(NType):
 
     # long lineNr;
@@ -741,6 +846,11 @@ class NVariantBoxType(NType):
                 return False
 
         return visitor.visit(self)
+
+
+
+
+
 
 
 class NTypeArg:
@@ -927,6 +1037,14 @@ class NFunctionType(NType):
 
 
 
+
+
+
+
+
+
+
+
 class NParametrizedIdentifierType(NType):
 
     # long lineNr;
@@ -1003,98 +1121,17 @@ class NParametrizedIdentifierType(NType):
         return visitor.visit(self) 
 
 
-################### INTERNAL TYPES FOR TYPE INFERENCE AID ###################
-
-
-class NAlternativePossibilitiesType(NType):
-
-    # Arraylist<NType> alternativesList;
-    
-    def __init__(self, lineNr, rowNr, alternativesList):
-        self.lineNr = lineNr
-        self.rowNr = rowNr
-        self.alternativesList = alternativesList
-
-
-    def print_it(self):
-        for alt in self.alternativesList:
-            print("ALT: ", end='')
-            alt.print_it()
-
-    def get_line_nr(self):
-        return self.lineNr
-
-    def get_row_nr(self):
-        return self.rowNr
-
-    def create_copy(self):
-        altListCopy = []
-        for alt in self.alternativesList:
-            altListCopy.append(alt.create_copy())
-
-        return NAlternativePossibilitiesType(self.lineNr, self.rowNr, altListCopy)        
-
-    def accept_visitor(self, visitor):
-        for alt in self.alternativesList:
-            success = alt.accept_visitor(visitor)
-            if success == False:
-                return False
-
-        return visitor.visit(self)
 
 
 
 
-class NUnknownType(NType):
-
-    def __init__(self, lineNr, rowNr):
-        self.lineNr = lineNr
-        self.rowNr = rowNr
-
-    def print_it(self):
-        print("UNKNOWN_TYPE", end='')
-
-    def get_line_nr(self):
-        return self.lineNr
-
-    def get_row_nr(self):
-        return self.rowNr
-
-    def create_copy(self):
-        return NUnknownType(self.lineNr, self.rowNr)
-    
-    def accept_visitor(self, visitor):
-        return False     # You should not visit these kinds of types actually
 
 
 
-class NInsertVariantBoxingHere(NType):
 
-    # NType constituentType
 
-    def __init__(self, lineNr, rowNr, superType, constituentType):
-        self.lineNr = lineNr
-        self.rowNr = rowNr
-        self.superType = superType
-        self.constituentType = constituentType
 
-    def print_it(self):
-        print("VARIANT_BOX_ME/", end='')
-        self.constituentType.print_it()
-        print("\\ as ", end='')
-        self.superType.print_it()
 
-    def get_line_nr(self):
-        return self.lineNr
-
-    def get_row_nr(self):
-        return self.rowNr
-
-    def create_copy(self):
-        return NInsertVariantBoxingHere(self.lineNr, self.rowNr, self.superType.create_copy(), self.constituentType.create_copy())
-
-    def accept_visitor(self, visitor):
-        return False     # You should not visit these kinds of types actually
 
 
 #################### EXPRESSIONS ##############################
@@ -2664,6 +2701,8 @@ class NBlock(NStatement):
     # long rowNr;
     # ArrayList<NStatement> statements;
 
+    # String blockEntryNumStr;
+
     def __init__(
         self,
         lineNr,
@@ -2837,7 +2876,7 @@ class NRefParam(NParam):
     # long lineNr;
     # long rowNr;
     # NIdentifier name;
-    # NType type;
+    # NType theType;
 
     def __init__(
         self,

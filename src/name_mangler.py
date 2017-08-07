@@ -102,6 +102,19 @@ def mangle_var_name(identifier, mangledModuleName, isGlobal, blockNumberList):
 
 
 
+
+
+def mangle_param_name(identifier):
+    resultString = "%param."
+
+    resultString += mangle_basic_name(identifier)
+    
+    return resultString
+
+
+
+
+
 def mangle_function_name(identifier, mangledModuleName, isGlobal, blockNumberList, overloadNr):
 
     resultString = "@fn."
