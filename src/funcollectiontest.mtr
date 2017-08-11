@@ -3,14 +3,23 @@ fn arne(construand f ' int, mu g ' arr int) ' int :
         print_utf8("Hello")
     ;
 
-    // fn f() ' bool :
-    // ;
+    fn f() ' bool :
+        fn gg() ' nil :
+        ;
+    ;
 
     switch lenny case 3 :
         fn lenny() ' int :
         ;
     ; default :
         i = 19
+        fn lenny2() :
+        ;
+    ;
+
+    storetype john case f64 :
+        fn testing() :
+        ;
     ;
 ;
 
@@ -20,6 +29,11 @@ type dict = dict{entries ' arr arr u8}
 
 internal inline fn g() :
     swap(ref a, ref b)
+
+    if i == 2 :
+        fn xorg() ' bool :
+        ;
+    ;
 ;
 
 

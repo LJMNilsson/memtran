@@ -1030,47 +1030,8 @@ def create_substitution_helper(unsubstitutedType, paramsDict):
 
 
 
+# NOTE: A CONCRETIZER IS A BAD IDEA DUE TO RECURSIVE TYPES. AVOID IT AT ALL COSTS.
 
-
-_MAX_CONCRETIZE_DEPTH = 20
-
-# returns a copying-unique concretized type, or False if concretization failed
-
-def concretize_type(t, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, beSilentFlag):
-
-    depthCounter = 0
-
-    while True:
-        if depthCounter > _MAX_CONCRETIZE_DEPTH:
-            if not beSilentFlag:
-                util.log_error(indexing.lineNr, indexing.rowNr, "Failed to concretize type (at depth 20).")
-            return False
-
-        if isinstance(t, NIdentifierType):
-
-            accumulatedType = accumulatedType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
-            depthCounter += 1
-
-        # TODO TODO TODO all types here
-
-        elif isinstance(accumulatedType, NParametrizedIdentifierType):
-
-            accumulatedType = create_substitution(accumulatedType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
-            depthCounter += 1
-
-        elif isinstance(accumulatedType, NDynamicArrayType):
-            break
-        else:
-            if not beSilentFlag:
-                util.log_error(indexing.lineNr, indexing.rowNr, "Trying to array index something that isn't of array type.")
-            return (False, None)
-
-    # Now we can assume it's a NDynamicArrayType...:
-  
-    if not beSilentFlag:
-        indexing.inferredType = accumulatedType.valueType.create_copy()
-
-    accumulatedType = indexing.inferredType
 
 
 
