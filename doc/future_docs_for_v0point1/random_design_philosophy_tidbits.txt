@@ -1,0 +1,7 @@
+Memtran was initially conceived as a language with a certain semantic model, where shared memory is not possible (except for pass-by-reference, where it is used in a structured way, simply for mutable "slots"). This brings with it certain programming disciplines such as providing a view or reorganisation another datastructure in terms of a collection of indices to that datastructure. I had experienced something close to this model when programming in the language Euphoria in my youth, and thought it was a nice thing in itself. (Maybe I'm quite unique in feeling that, or didn't investigate the shortcomings of the model deeply enough...)
+
+But later, it was discovered how to implement this model with certain optimisational underlying sharing, which sharing does not affect the semantic programming model -- in a way that does not utilize a tracing garbage collector nor reference counts. So into the foreground came a possible major selling point for the language: for usage in domains that desire predictability and/or speed with their memory handling -- basically programming domains with what is called "soft realtime requirements."
+
+So the design of Memtran oscillates between these two views of the language: a "nice programming model in general" vs. a "nice language for soft realtime requirements." But I have far too little experience of the second field. 
+
+But the language design process needs to acquire lots of _focus_ if this language is going to go anywhere. 

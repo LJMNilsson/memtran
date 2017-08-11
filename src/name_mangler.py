@@ -81,6 +81,9 @@ def mangle_template_name(identifier, mangledModuleName):
 
 def mangle_var_name(identifier, mangledModuleName, isGlobal, blockNumberList):
 
+    # due to design wavering, blockNumberList for this particular mangle function should be 
+    # a list of number-representing _strings_, not a list of numbers...
+
     resultString = ""
 
     if isGlobal:
@@ -93,7 +96,7 @@ def mangle_var_name(identifier, mangledModuleName, isGlobal, blockNumberList):
     resultString += "."
         
     for blockNumber in blockNumberList:
-        resultString += str(blockNumber)
+        resultString += blockNumber
         resultString += "."
 
     resultString += mangle_basic_name(identifier)

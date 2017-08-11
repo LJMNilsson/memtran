@@ -128,6 +128,11 @@ class _CheckTypesVisitor(AbstractASTVisitor):
                     util.log_error(node.lineNr, node.rowNr, "Wrong number of arguments to parametrized type.")
                     return False            
             
+
+            success = node.visit_children(self)
+            if success == False:
+                return False
+
             return True
             
         
@@ -182,6 +187,10 @@ class _CheckTypesVisitor(AbstractASTVisitor):
 
 
         else:
+            success = node.visit_children(self)
+            if success == False:
+                return False
+
             return True    
 
         
@@ -203,7 +212,7 @@ def check(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictD
 
         checker = _CheckTypesVisitor(params, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
-        success = declaration.theType.accept_visitor(checker)
+        success = checker.visit(declaration.theType)
         if success == False:
             return False    
 

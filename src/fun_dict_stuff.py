@@ -78,8 +78,9 @@ class BlockEntry(FunListEntryOrSlotEntry):
 
     # Dictionary<FunListEntryOrSlotEntry> localDict;
 
-    def __init__(self, localDict):
+    def __init__(self, localDict, funDictEntryNameNr):
         self.localDict = localDict
+        self.funDictEntryNameNr = funDictEntryNameNr
 
     def print_it(self):
         print("block: {")

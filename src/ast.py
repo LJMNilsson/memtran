@@ -52,8 +52,8 @@ class NIdentifier:
         return NIdentifier(self.lineNr, self.rowNr, self.name)
     
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)    # leaf element
+    def visit_children(self, visitor):
+        return True    # leaf element
 
 
 
@@ -73,7 +73,7 @@ class NType:
 
     # abstract NType createCopy();
 
-    # abstract Any (default boolean) accept_visitor(AbstractASTVisitor visitor);
+    # abstract boolean visit_children(AbstractASTVisitor visitor);
 
     
 
@@ -127,17 +127,17 @@ class NIdentifierType(NType):
         else:
             return NIdentifierType(self.lineNr, self.rowNr, self.moduleNameOrNull.create_copy(), self.name.create_copy())
     
-    def accept_visitor(self, visitor):
+    def visit_children(self, visitor):
         if not self.moduleNameOrNull is None:
-            success = self.moduleNameOrNull.accept_visitor(visitor)
+            success = visitor.visit(self.moduleNameOrNull)
             if success == False:
                 return False
 
-        success = self.name.accept_visitor(visitor)
+        success = visitor.visit(self.name)
         if success == False:
             return False
 
-        return visitor.visit(self)
+        return True
  
 
 
@@ -198,8 +198,8 @@ class NNilType(NType):
         return NNilType(self.lineNr, self.rowNr)
 
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)     # concrete element
+    def visit_children(self, visitor):
+        return True     # concrete element
 
 
 
@@ -237,8 +237,8 @@ class NBoolType(NType):
     def create_copy(self):
         return NBoolType(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)     # concrete element
+    def visit_children(self, visitor):
+        return True     # concrete element
 
 
 
@@ -271,8 +271,8 @@ class NI8Type(NType):
     def create_copy(self):
         return NI8Type(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)    # concrete element
+    def visit_children(self, visitor):
+        return True    # concrete element
 
 
 
@@ -300,8 +300,8 @@ class NI16Type(NType):
     def create_copy(self):
         return NI16Type(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)     # concrete element
+    def visit_children(self, visitor):
+        return True    # concrete element
 
 
 
@@ -333,8 +333,8 @@ class NI32Type(NType):
     def create_copy(self):
         return NI32Type(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)     # concrete element
+    def visit_children(self, visitor):
+        return True    # concrete element
 
 
 
@@ -366,8 +366,8 @@ class NI64Type(NType):
     def create_copy(self):
         return NI64Type(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)     # concrete element
+    def visit_children(self, visitor):
+        return True    # concrete element
 
 
 
@@ -397,8 +397,8 @@ class NISizeType(NType):
     def create_copy(self):
         return NISizeType(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)     # concrete element
+    def visit_children(self, visitor):
+        return True    # concrete element
 
 
 
@@ -428,8 +428,8 @@ class NU8Type(NType):
     def create_copy(self):
         return NU8Type(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)    # concrete element
+    def visit_children(self, visitor):
+        return True    # concrete element
 
 
 
@@ -461,8 +461,8 @@ class NU16Type(NType):
     def create_copy(self):
         return NU16Type(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)    # concrete element
+    def visit_children(self, visitor):
+        return True    # concrete element
 
 
 
@@ -494,8 +494,8 @@ class NU32Type(NType):
     def create_copy(self):
         return NU32Type(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)     # concrete element
+    def visit_children(self, visitor):
+        return True    # concrete element
 
 
 
@@ -526,8 +526,8 @@ class NU64Type(NType):
     def create_copy(self):
         return NU64Type(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)     # concrete element
+    def visit_children(self, visitor):
+        return True    # concrete element
 
 
 
@@ -559,8 +559,8 @@ class NUSizeType(NType):
     def create_copy(self):
         return NUSizeType(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)     # concrete element
+    def visit_children(self, visitor):
+        return True    # concrete element
 
 
 
@@ -592,8 +592,8 @@ class NF32Type(NType):
     def create_copy(self):
         return NF32Type(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)     # concrete element
+    def visit_children(self, visitor):
+        return True    # concrete element
     
 
 
@@ -625,8 +625,8 @@ class NF64Type(NType):
     def create_copy(self):
         return NF64Type(self.lineNr, self.rowNr)
 
-    def accept_visitor(self, visitor):
-        return visitor.visit(self)     # concrete element
+    def visit_children(self, visitor):
+        return True    # concrete element
 
 
 
@@ -667,12 +667,12 @@ class NDynamicArrayType(NType):
         return NDynamicArrayType(self.lineNr, self.rowNr, self.valueType.create_copy())    
     
     
-    def accept_visitor(self, visitor):
-        success = self.valueType.accept_visitor(visitor)
+    def visit_children(self, visitor):
+        success = visitor.visit(self.valueType)
         if success == False:
             return False
 
-        return visitor.visit(self) 
+        return True 
 
 
 
@@ -721,16 +721,16 @@ class NStructTypeMember:
         return NStructTypeMember(self.lineNr, self.rowNr, self.name.create_copy(), self.theType.create_copy())
     
 
-    def accept_visitor(self, visitor):
-        success = self.name.accept_visitor(visitor)
+    def visit_children(self, visitor):
+        success = visitor.visit(self.name)
         if success == False:
             return False
 
-        success = self.theType.accept_visitor(visitor)    
+        success = visitor.visit(self.theType)   
         if success == False:
             return False
 
-        return visitor.visit(self)
+        return True
 
 
 class NStructType(NType):
@@ -776,17 +776,17 @@ class NStructType(NType):
         return NStructType(self.lineNr, self.rowNr, self.tag.create_copy(), membersCopy)
     
 
-    def accept_visitor(self, visitor):
-        success = self.tag.accept_visitor(visitor)
+    def visit_children(self, visitor):
+        success = visitor.visit(self.tag)
         if success == False:
             return False
 
         for member in self.members:
-            success = member.accept_visitor(visitor)
+            success = visitor.visit(member)
             if success == False:
                 return False
 
-        return visitor.visit(self)
+        return True
 
 
 
@@ -839,13 +839,13 @@ class NVariantBoxType(NType):
         return NVariantBoxType(self.lineNr, self.rowNr, typesCopy)
     
 
-    def accept_visitor(self, visitor):
+    def visit_children(self, visitor):
         for t in self.types:
-            success = t.accept_visitor(visitor)
+            success = visitor.visit(t)
             if success == False:
                 return False
 
-        return visitor.visit(self)
+        return True
 
 
 
@@ -911,12 +911,12 @@ class NNormalTypeArg(NTypeArg):
         return NNormalTypeArg(self.lineNr, self.rowNr, self.isMu, self.isConstruand, self.argType.create_copy())
     
 
-    def accept_visitor(self, visitor):
-        success = self.argType.acceptVisitor(visitor)
+    def visit_children(self, visitor):
+        success = visitor.visit(self.argType)
         if success == False:
             return False
 
-        return visitor.visit(self)
+        return True
 
 
 
@@ -953,12 +953,12 @@ class NRefTypeArg(NTypeArg):
         return NRefTypeArg(self.lineNr, self.rowNr, self.argType.create_copy())
     
 
-    def accept_visitor(self, visitor):
-        success = self.argType.accept_visitor(visitor)
+    def visit_children(self, visitor):
+        success = visitor.visit(self.argType)
         if success == False:
             return False
 
-        return visitor.visit(self)
+        return True
 
 
 
@@ -1024,16 +1024,16 @@ class NFunctionType(NType):
 
     def accept_visitor(self, visitor):
         for typeArg in self.typeArgs:
-            success = typeArg.accept_visitor(visitor)
+            success = visitor.visit(typeArg)
             if success == False:
                 return False
 
         for returnType in self.returnTypes:
-            success = returnType.accept_visitor(visitor)
+            success = visitor.visit(returnType)
             if success == False:
                 return False
 
-        return visitor.visit(self)
+        return True
 
 
 
@@ -1103,22 +1103,22 @@ class NParametrizedIdentifierType(NType):
 
 
 
-    def accept_visitor(self, visitor):
+    def visit_children(self, visitor):
         if not self.moduleNameOrNull is None:
-            success = self.moduleNameOrNull.accept_visitor(visitor)
+            success = visitor.visit(self.moduleNameOrNull)
             if success == False:
                 return False
 
-        success = self.name.accept_visitor(visitor)
+        success = visitor.visit(self.name)
         if success == False:
             return False
 
         for param in self.params:
-            success = param.accept_visitor(visitor)
+            success = visitor.visit(param)
             if success == False:
                 return False
 
-        return visitor.visit(self) 
+        return True 
 
 
 
@@ -1151,6 +1151,8 @@ class NExpression:
     # abstract long getRowNr();
 
     # abstract NExpression create_copy();
+
+    # abstract boolean visit_children(AbstractASTVisitor visitor);
 
 
 
@@ -1221,6 +1223,22 @@ class NIdentifierExpression(NExpression):
             return result
 
 
+    def visit_children(self, visitor):
+        if not self.moduleNameOrNull is None:
+            success = visitor.visit(self.moduleNameOrNull)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.name)
+        if success == False:
+            return False
+    
+        for indexing in self.indexings:
+            success = visitor.visit(indexing)
+            if success == False:
+                return False
+
+        return True    
 
 
 class NIndexingIndex:
@@ -1232,6 +1250,8 @@ class NIndexingIndex:
     # abstract long getRowNr();
 
     # abstract NIndexingIndex create_copy()
+
+    # abstract boolean visit_children(AbstractASTVisitor visitor);
 
     pass
 
@@ -1266,6 +1286,8 @@ class NNilExpression(NExpression):
         return NNilExpression(self.lineNr, self.rowNr) # no copying actually needed for literals, but whatever
     
 
+    def visit_children(self, visitor):
+        return True   # concrete node
 
 
 class NTrueExpression(NExpression):
@@ -1295,7 +1317,8 @@ class NTrueExpression(NExpression):
     def create_copy(self):
         return NTrueExpression(self.lineNr, self.rowNr)   # no copying actually needed for literals, but whatever
     
-
+    def visit_children(self, visitor):
+        return True   # concrete node
 
 
 
@@ -1327,7 +1350,8 @@ class NFalseExpression(NExpression):
     def create_copy(self):
         return NFalseExpression(self.lineNr, self.rowNr) # no copying actually needed for literals, but whatever
     
-
+    def visit_children(self, visitor):
+        return True   # concrete node
 
 
 
@@ -1367,7 +1391,8 @@ class NIntegerExpression(NExpression):
     def create_copy(self):
         return NIntegerExpression(self.lineNr, self.rowNr, self.value, self.isNegative)
        
-
+    def visit_children(self, visitor):
+        return True   # concrete node
 
 
 
@@ -1408,7 +1433,8 @@ class NFloatingPointNumberExpression(NExpression):
     def create_copy(self):
         return NFloatingPointNumberExpression(self.lineNr, self.rowNr, self.value, self.isNegative)
     
-
+    def visit_children(self, visitor):
+        return True   # concrete node
 
 
 class NStringExpression(NExpression):
@@ -1443,7 +1469,8 @@ class NStringExpression(NExpression):
     def create_copy(self):
         return NStringExpression(self.lineNr, self.rowNr, self.value)
     
-
+    def visit_children(self, visitor):
+        return True   # concrete node
 
 
 
@@ -1495,6 +1522,18 @@ class NArrayExpressionIndividualValues(NExpression):
 
         return NArrayExpressionIndividualValues(self.lineNr, self.rowNr, valuesCopy)
     
+    
+    def visit_children(self, visitor):
+        for value in self.values:
+            success = visitor.visit(value)
+            if success == False:
+                return False
+
+        return True
+
+
+
+
 
 
 class NArrayExpressionNoInitialization(NExpression):
@@ -1540,6 +1579,14 @@ class NArrayExpressionNoInitialization(NExpression):
         return NArrayExpressionNoInitialization(self.lineNr, self.rowNr, self.inUninitialized, self.length.create_copy())
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.length)
+        if success == False:
+            return False
+
+        return True
+
+
 
 class NArrayExpressionRepeatedValue(NExpression):
 
@@ -1582,6 +1629,21 @@ class NArrayExpressionRepeatedValue(NExpression):
         return NArrayExpressionRepeatedValue(self.lineNr, self.rowNr, self.repeatedValue.createCopy(), self.length.createCopy())
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.repeatedValue)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.length)
+        if success == False:
+            return False
+
+        return True
+
+
+
+
+
 
 class NStructExpressionPost:
 
@@ -1620,6 +1682,19 @@ class NStructExpressionPost:
     
     def create_copy(self):
         return NStructExpressionPost(self.lineNr, self.rowNr, self.name.create_copy(), self.value.create_copy())    
+
+
+    def visit_children(self, visitor):
+        success = visitor.visit(self.name)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.value)
+        if success == False:
+            return False
+        
+        return True
+
 
 
 
@@ -1671,6 +1746,20 @@ class NStructExpression(NExpression):
         return NStructExpression(self.lineNr, self.rowNr, self.tag.create_copy(), postsCopy)
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.tag)   # probably too deep but whatever
+        if success == False:
+            return False
+
+        for post in self.posts:
+            success = visitor.visit(post)
+            if success == False:
+                return False
+
+        return True
+
+
+
 
 
 class NVariantBoxExpression(NExpression):
@@ -1698,6 +1787,16 @@ class NVariantBoxExpression(NExpression):
     
     def create_copy(self):
         return NVariantBoxExpression(self.lineNr, self.rowNr, self.expression.create_copy())
+
+
+    def visit_children(self, visitor):
+        success = visitor.visit(self.expression)
+        if success == False:
+            return False
+
+        return True
+
+
 
 
 
@@ -1740,6 +1839,16 @@ class NTypeClarifiedExpression(NExpression):
         return NTypeClarifiedExpression(self.lineNr, self.rowNr, self.expression.create_copy(), self.theType.create_copy())
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.expression)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.theType)
+        if success == False:
+            return False
+
+        return True
 
 
 
@@ -1800,6 +1909,16 @@ class NArrayIndexing(NExpression):
         return NArrayIndexing(self.lineNr, self.rowNr, self.arrayExpression.create_copy(), self.indexExpression.create_copy())
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.arrayExpression)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.indexExpression)
+        if success == False:
+            return False
+
+        return True
 
 
 class NArrayIndexingIndex(NIndexingIndex):
@@ -1834,6 +1953,15 @@ class NArrayIndexingIndex(NIndexingIndex):
     def create_copy(self):
         return NArrayIndexingIndex(self.lineNr, self.rowNr, self.indexExpression.create_copy()) 
     
+
+    def visit_children(self, visitor):
+        success = visitor.visit(self.indexExpression)
+        if success == False:
+            return False
+
+        return True
+
+
 
 
 
@@ -1875,6 +2003,19 @@ class NStructIndexing(NExpression):
         return NStructIndexing(self.lineNr, self.rowNr, self.structExpression.create_copy(), self.indexName.create_copy())
 
     
+    def visit_children(self, visitor):
+        success = visitor.visit(self.structExpression)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.indexName)
+        if success == False:
+            return False
+
+        return True
+
+
+
 
 
 class NStructIndexingIndex(NIndexingIndex):
@@ -1906,6 +2047,15 @@ class NStructIndexingIndex(NIndexingIndex):
     
     def create_copy(self):
         return NStructIndexingIndex(self.lineNr, self.rowNr, self.indexName.create_copy())
+
+
+    def visit_children(self, visitor):
+        success = visitor.visit(self.indexName)
+        if success == False:
+            return False
+
+        return True
+
 
 
 
@@ -1943,6 +2093,16 @@ class NVariantBoxCastIndex(NIndexingIndex):
         return NVariantBoxCastIndex(self.lineNr, self.rowNr, self.theType.create_copy())
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.theType)
+        if success == False:
+            return False
+
+        return True
+
+
+
+
 
 
 class NTypeClarificationIndex(NIndexingIndex):
@@ -1976,6 +2136,13 @@ class NTypeClarificationIndex(NIndexingIndex):
     def create_copy(self):
         return NTypeClarificationIndex(self.lineNr, self.rowNr, self.theType.create_copy())
 
+
+    def visit_children(self, visitor):
+        success = visitor.visit(self.theType)
+        if success == False:
+            return False
+
+        return True
 
 
 
@@ -2065,6 +2232,20 @@ class NVariantBoxCastExpression(NExpression):
     def create_copy(self):
         return NVariantBoxCastExpression(self.lineNr, self.rowNr, self.expression.create_copy(), self.theType.create_copy())
 
+    
+    def visit_children(self, visitor):
+        success = visitor.visit(self.expression)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.theType)
+        if successs == False:
+            return False
+
+        return True
+
+
+
 
 
 
@@ -2114,7 +2295,22 @@ class NNormalArg(NArg):
         else:
             return NNormalArg(self.lineNr, self.rowNr, self.argNameOrNull.create_copy(), self.argExpression.create_copy())
 
-    
+   
+    def visit_children(self, visitor):
+        if not self.argNameOrNull is None:
+            success = visitor.visit(self.argNameOrNull)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.argExpression)
+        if success == False:
+            return False
+
+        return True
+     
+
+
+
 
 
 class NRefArg(NArg):
@@ -2159,6 +2355,23 @@ class NRefArg(NArg):
             return NRefArg(self.lineNr, self.rowNr, self.argNameOrNull.create_copy(), self.lValueContainer.create_copy())
 
 
+    
+    def visit_children(self, visitor):
+        if not self.argNameOrNull is None:
+            success = visitor.visit(self.argNameOrNull)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.lValueContainer)
+        if success == False:
+            return False
+
+        return True
+
+
+
+
+
 
 
 class NAndSymbolExpression(NExpression):
@@ -2199,6 +2412,18 @@ class NAndSymbolExpression(NExpression):
 
     def create_copy(self):
         return NAndSymbolExpression(self.lineNr, self.rowNr, self.leftExpression.create_copy(), self.rightExpression.create_copy())
+
+
+    def visit_children(self, visitor):
+        success = visitor.visit(self.leftExpression)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.rightExpression)
+        if success == False:
+            return False
+    
+        return True
 
 
 
@@ -2242,6 +2467,21 @@ class NOrSymbolExpression(NExpression):
         return NOrSymbolExpression(self.lineNr, self.rowNr, self.leftExpression.create_copy(), self.rightExpression.create_copy())
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.leftExpression)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.rightExpression)
+        if success == False:
+            return False
+    
+        return True
+
+
+
+
+
 class NEndExpression(NExpression):
 
     # long lineNr;
@@ -2280,6 +2520,22 @@ class NEndExpression(NExpression):
             result.expansion = self.expansion.create_copy()
 
         return result    # TODO: We have to do like this later with create_copy on all things that have annotations!!!!!!!!!!!    
+
+
+    def visit_children(self, visitor):
+        # this seems reasonable to do...
+
+        if hasattr(self, "expansion"):
+            success = visitor.visit(self.expansion)
+            if success == False:
+                return False
+
+            return True
+
+        else:
+            return True
+
+
 
 
 
@@ -2331,6 +2587,20 @@ class NFunctionCall(NExpression):
         return result
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.functionExpression)
+        if success == False:
+            return False
+
+        for arg in self.args:
+            success = visitor.visit(arg)
+            if success == False:
+                return False
+
+        return True
+
+
+
 
 
 class NIFExpression(NExpression):
@@ -2369,6 +2639,25 @@ class NIFExpression(NExpression):
     def create_copy(self):
         result = NIFExpression(self.lineNr, self.rowNr, self.condition.create_copy(), self.thenExpression.create_copy(), self.elseExpression.create_copy())
         return result
+
+    
+    def visit_children(self, visitor):
+        success = visitor.visit(self.condition)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.thenExpression)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.elseExpression)
+        if success == False:
+            return False
+
+        return True
+
+
+
 
 
 class NSWITCHNormalCase:
@@ -2412,7 +2701,22 @@ class NSWITCHNormalCase:
             caseValuesCopy.append(caseValue.create_copy())
 
         result = NSWITCHNormalCase(self.lineNr, self.rowNr, caseValuesCopy, self.value.create_copy())
-        return result    
+        return result 
+
+
+    def visit_children(self, visitor):
+        for caseValue in self.caseValues:
+            success = visitor.visit(caseValue)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.value)
+        if success == False:
+            return False
+
+        return True
+
+   
 
 
 class NCONTENTTYPENormalCase:
@@ -2450,6 +2754,22 @@ class NCONTENTTYPENormalCase:
 
         result = NCONTENTTYPENormalCase(self.lineNr, self.rowNr, typeCasesCopy, self.value.create_copy())
         return result
+
+
+    def visit_children(self, visitor):
+        for typeCase in self.typeCases:
+            success = visitor.visit(typeCase)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.value)
+        if success == False:
+            return False
+
+        return True
+
+
+
 
 
 class NSWITCHExpression(NExpression):
@@ -2492,6 +2812,25 @@ class NSWITCHExpression(NExpression):
 
         result = NSWITCHNormalCase(self.lineNr, self.rowNr, self.switchValue.create_copy(), casesCopy, self.defaultCase.create_copy())
         return result
+
+    
+    def visit_children(self, visitor):
+        success = visitor.visit(self.switchValue)
+        if success == False:
+            return False
+
+        for case in self.cases:
+            success = visitor.visit(case)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.defaultCase)
+        if success == False:
+            return False
+
+        return True
+
+
 
 
 class NCONTENTTYPEExpression(NExpression):
@@ -2540,6 +2879,26 @@ class NCONTENTTYPEExpression(NExpression):
         return result
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.switchValue)
+        if success == False:
+            return False
+
+        for case in self.cases:
+            success = visitor.visit(case)
+            if success == False:
+                return False
+
+        if not self.defaultCaseOrNull is None:
+            success = visitor.visit(self.defaultCaseOrNull)
+            if success == False:
+                return False
+
+        return True
+
+
+
+
 ##################### LVALUES ETC. #################################
 
 
@@ -2549,6 +2908,8 @@ class NLValueOrVariableDeclaration:
 
     # abstract long getLineNr();
     # abstract long getRowNr();
+
+    # abstract boolean visit_children(AbstractASTVisitor visitor);
 
     pass
 
@@ -2561,7 +2922,7 @@ class NLValueContainer(NLValueOrVariableDeclaration):
 
     # long lineNr;
     # long rowNr;
-    # NIdentifierExpression lValueExpression;
+    # NExpression lValueExpression;
 
     def __init__(self, lineNr,
         rowNr,
@@ -2591,6 +2952,12 @@ class NLValueContainer(NLValueOrVariableDeclaration):
         return NLValueContainer(self.lineNr, self.rowNr, self.lValueExpression.create_copy())
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.lValueExpression)
+        if success == False:
+            return False
+
+        return True
 
 
 
@@ -2606,6 +2973,8 @@ class NStatement:
 
     # abstract long getLineNr();
     # abstract long getRowNr();
+
+    # abstract boolean visit_children(AbstractASTVisitor visitor);
     
     pass
 
@@ -2695,13 +3064,35 @@ class NTypeDeclarationWithDefinition(NStatement):
             return result
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.name)
+        if success == False:
+            return False
+
+        if not self.paramsOrNull is None:
+            for param in self.paramsOrNull:
+                success = visitor.visit(param)
+                if success == False:
+                    return False
+
+        success = visitor.visit(self.theType)
+        if success == False:
+            return False
+
+        return True
+
+
+
+            
+
+
 class NBlock(NStatement):
 
     # long lineNr;
     # long rowNr;
     # ArrayList<NStatement> statements;
 
-    # String blockEntryNumStr;
+    # String blockEntryNumStr;     // added by slot collection pass
 
     def __init__(
         self,
@@ -2729,6 +3120,13 @@ class NBlock(NStatement):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        for statement in self.statements:
+            success = visitor.visit(statement)
+            if success == False:
+                return False
+
+        return True
 
 
 
@@ -2757,7 +3155,19 @@ class NElseIfClause:
         return self.lineNr
 
     def get_row_nr(self): 
-        return self.rowNr    
+        return self.rowNr
+
+
+    def visit_children(self, visitor):
+        success = visitor.visit(self.condition)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.block)
+        if success == False:
+            return False
+
+        return True    
 
 
 
@@ -2802,6 +3212,27 @@ class NIfStatement(NStatement):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.condition)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.ifBlock)
+        if success == False:
+            return False
+
+        for elseIfClause in self.elseIfClauses:
+            success = visitor.visit(elseIfClause)
+            if success == False:
+                return False
+
+        if not self.elseBlockOrNull is None:    
+            success = visitor.visit(self.elseBlockOrNull)
+            if success == False:
+                return False
+
+        return True
+
 
 
 class NParam:
@@ -2813,6 +3244,8 @@ class NParam:
     # abstract long getRowNr();
 
     # abstract Param create_copy();
+
+    # abstract boolean visit_children(AbstractASTVisitor visitor);
     
     pass
 
@@ -2867,6 +3300,17 @@ class NNormalParam(NParam):
         return NNormalParam(self.lineNr, self.rowNr, self.isMut, self.isConstruand, self.name.create_copy(), self.theType.create_copy())
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.name)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.theType)
+        if success == False:
+            return False
+
+        return True
+
 
 
 
@@ -2907,6 +3351,20 @@ class NRefParam(NParam):
 
     def create_copy(self):
         return NRefParam(self.lineNr, self.rowNr, self.name.create_copy(), self.theType.create_copy())
+
+
+    def visit_children(self, visitor):
+        success = visitor.visit(self.name)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.theType)
+        if success == False:
+            return False
+
+        return True
+
+
 
 
 
@@ -2980,12 +3438,39 @@ class NActualFunctionDeclarationWithDefinition(NStatement):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.name)
+        if success == False:
+            return False
+
+        for param in self.params:
+            success = visitor.visit(param)
+            if success == False:
+                return False
+
+        for returnType in self.returnTypes:
+            success = visitor.visit(returnType)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.body)
+        if success == False:
+            return False
+
+        return True
+
+
+
+
+
 
 
 class NRefToFunctionDeclarationWithDefinition(NStatement):
 
     # int funsIndex;
     # ArrayList<NActualFunctionDeclarationWithDefinition> funs; // need this ref for printing, sadly, in order to conform to the NStatement abstract
+
+    # int blockNumberStr
 
     def __init__ (
         self,
@@ -3007,7 +3492,14 @@ class NRefToFunctionDeclarationWithDefinition(NStatement):
         return self.funs[self.funsIndex].get_row_nr()
 
 
+    def visit_children(self, visitor):
+        # this seems the reasonable thing to do for our purposes:
 
+        success = visitor.visit(self.funs[self.funsIndex])
+        if success == False:
+            return False
+
+        return True
 
 
 
@@ -3087,6 +3579,34 @@ class NActualTemplateDeclarationWithDefinition(NStatement):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        for templateParam in self.templateParams:
+            success = visitor.visit(templateParam)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.name)
+        if success == False:
+            return False
+
+        for param in self.params:
+            success = visitor.visit(param)
+            if success == False:
+                return False
+
+        for returnType in self.returnTypes:
+            success = visitor.visit(returnType)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.body)
+        if success == False:
+            return False
+
+        return True
+
+
+
 
 
 class NRefToTemplateDeclarationWithDefinition(NStatement):
@@ -3114,6 +3634,12 @@ class NRefToTemplateDeclarationWithDefinition(NStatement):
         return self.templates[self.templatesIndex].get_row_nr()
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.templates[self.templatesIndex])
+        if success == False:
+            return False
+
+        return True
 
 
 
@@ -3164,11 +3690,21 @@ class NVariableDeclaration(NLValueOrVariableDeclaration):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.name)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.theType)
+        if success == False:
+            return False
+
+        return True
 
 
 
 
-class NAssignment:
+class NAssignment(NStatement):
     pass
 
 
@@ -3213,7 +3749,17 @@ class NNormalAssignment(NAssignment):
 
 
 
+    def visit_children(self, visitor):
+        for lhsEntry in self.leftHandSide:
+            success = visitor.visit(lhsEntry)
+            if success == False:
+                return False
 
+        success = visitor.visit(self.value)
+        if success == False:
+            return False
+
+        return True
 
 
 
@@ -3258,6 +3804,17 @@ class NModuloAssignment(NAssignment):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        for lhsEntry in self.leftHandSide:
+            success = visitor.visit(lhsEntry)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.value)
+        if success == False:
+            return False
+
+        return True
 
 
 
@@ -3302,6 +3859,21 @@ class NAdditionAssignment(NAssignment):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        for lhsEntry in self.leftHandSide:
+            success = visitor.visit(lhsEntry)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.value)
+        if success == False:
+            return False
+
+        return True
+
+
+
+
 
 class NSubtractionAssignment(NAssignment):
 
@@ -3341,6 +3913,19 @@ class NSubtractionAssignment(NAssignment):
 
     def get_row_nr(self): 
         return self.rowNr
+
+
+    def visit_children(self, visitor):
+        for lhsEntry in self.leftHandSide:
+            success = visitor.visit(lhsEntry)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.value)
+        if success == False:
+            return False
+
+        return True
 
 
 
@@ -3387,6 +3972,19 @@ class NMultiplicationAssignment(NAssignment):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        for lhsEntry in self.leftHandSide:
+            success = visitor.visit(lhsEntry)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.value)
+        if success == False:
+            return False
+
+        return True
+
+
 
 
 
@@ -3431,6 +4029,20 @@ class NDivisionAssignment(NAssignment):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        for lhsEntry in self.leftHandSide:
+            success = visitor.visit(lhsEntry)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.value)
+        if success == False:
+            return False
+
+        return True
+
+
+
 
 
 
@@ -3469,6 +4081,18 @@ class NLoopStatement(NStatement):
 
     def get_row_nr(self): 
         return self.rowNr
+
+
+    def visit_children(self, visitor):
+        success = visitor.visit(self.block)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.labelOrNull)
+        if success == False:
+            return False
+
+        return True
 
 
 
@@ -3526,7 +4150,24 @@ class NRange:
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.counterName)
+        if success == False:
+            return False
 
+        success = visitor.visit(self.counterType)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.rangeFrom)
+        if success == False:
+            return False
+
+        success = visitor.visit(self.rangeTo)
+        if success == False:
+            return False
+
+        return True
 
 
 
@@ -3537,6 +4178,8 @@ class NIteration:
 
     # abstract long getLineNr();
     # abstract long getRowNr();
+
+    # abstract boolean visit_children(AbstractASTVisitor visitor);
 
     pass
 
@@ -3599,6 +4242,31 @@ class NIterationIn(NIteration):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.itName)
+        if success == False:
+            return False
+
+        if not self.itTypeOrNull is None:
+            success = visitor.visit(self.itTypeOrNull)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.arrayExpression)
+        if success == False:
+            return False
+
+        if not self.indexfactorOrNull is None:
+            success = visitor.visit(self.indexfactorOrNull)
+            if success == False:
+                return False
+
+        if not self.indexoffsetOrNull is None:
+            success = visitor.visit(self.indexoffsetOrNull)
+            if success == False:
+                return False
+
+        return True
 
 
 
@@ -3658,6 +4326,31 @@ class NIterationOver(NIteration):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.itName)
+        if success == False:
+            return False
+
+        if not self.itTypeOrNull is None:
+            success = visitor.visit(self.itTypeOrNull)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.arrayLValue)
+        if success == False:
+            return False
+
+        if not self.indexfactorOrNull is None:
+            success = visitor.visit(self.indexfactorOrNull)
+            if success == False:
+                return False
+
+        if not self.indexoffsetOrNull is None:
+            success = visitor.visit(self.indexoffsetOrNull)
+            if success == False:
+                return False
+
+        return True
 
 
 
@@ -3718,7 +4411,27 @@ class NForStatement(NStatement): # check this during validation so that there is
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        if not self.rangeOrNull is None:
+            success = visitor.visit(self.rangeOrNull)
+            if success == False:
+                return False
 
+        for iteration in self.iterations:
+            success = visitor.visit(iteration)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.block)
+        if success == False:
+            return False
+
+        if not self.labelOrNull is None:
+            success = visitor.visit(self.labelOrNull)
+            if success == False:
+                return False
+
+        return True
 
 
 
@@ -3751,6 +4464,16 @@ class NFunctionCallStatement(NStatement):
 
     def get_row_nr(self): 
         return self.rowNr
+
+
+    def visit_children(self, visitor):
+        success = visitor.visit(self.functionCall)
+        if success == False:
+            return False
+
+        return True
+
+
 
 
 
@@ -3793,6 +4516,14 @@ class NReturnStatement(NStatement):
 
 
 
+    def visit_children(self, visitor):
+        for returnExpression in self.returnExpressions:
+            success = visitor.visit(returnExpression)
+            if success == False:
+                return False
+
+        return True
+
 
 
 
@@ -3827,6 +4558,15 @@ class NBreakStatement(NStatement):
 
     def get_row_nr(self): 
         return self.rowNr
+
+
+    def visit_children(self, visitor):
+        if not self.labelOrNull is None:
+            success = visitor.visit(self.labelOrNull)
+            if success == False:
+                return False
+
+        return True
 
 
 
@@ -3865,6 +4605,18 @@ class NContinueStatement(NStatement):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        if not self.labelOrNull is None:
+            success = visitor.visit(self.labelOrNull)
+            if success == False:
+                return False
+
+        return True
+
+
+
+
+
 
 
 class NSwitchNormalCase:
@@ -3898,6 +4650,19 @@ class NSwitchNormalCase:
 
     def get_row_nr(self): 
         return self.rowNr
+
+
+    def visit_children(self, visitor):
+        for caseValue in self.caseValues:
+            success = visitor.visit(caseValue)
+            if success == False:
+                return False
+
+        success = visitor.visit(self.block)
+        if success == False:
+            return False
+
+        return True
 
 
 
@@ -3946,7 +4711,17 @@ class NContenttypeNormalCase:
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        for caseType in self.caseTypes:
+            success = visitor.visit(caseType)
+            if success == False:
+                return False
 
+        success = visitor.visit(self.block)
+        if success == False:
+            return False
+
+        return True
 
 
 
@@ -3984,6 +4759,27 @@ class NSwitchStatement(NStatement):
 
     def get_row_nr(self): 
         return self.rowNr
+
+    
+    def visit_children(self, visitor):
+        success = visitor.visit(self.switchValue)
+        if success == False:
+            return False
+
+        for case in self.cases:
+            success = visitor.visit(case)
+            if success == False:
+                return False
+
+        if not self.defaultCaseOrNull is None:
+            success = visitor.visit(self.defaultCaseOrNull)
+            if success == False:
+                return False
+
+        return True
+
+
+
 
 
 
@@ -4036,6 +4832,22 @@ class NContenttypeStatement(NStatement):
         return self.rowNr
 
 
+    def visit_children(self, visitor):
+        success = visitor.visit(self.switchValue)
+        if success == False:
+            return False
+
+        for case in self.cases:
+            success = visitor.visit(case)
+            if success == False:
+                return False
+
+        if not self.defaultCaseOrNull is None:
+            success = visitor.visit(self.defaultCaseOrNull)
+            if success == False:
+                return False
+
+        return True
 
 
 
@@ -4111,7 +4923,18 @@ class NProgram:
         return self.lineNr
 
     def get_row_nr(self): 
-        return self.rowNr    
+        return self.rowNr
+
+
+    def visit_children(self, visitor):
+        # we don't bother about the import statements!
+
+        for statement in self.statements:
+            success = visitor.visit(statement)
+            if success == False:
+                return False
+
+        return True    
 
 
 
@@ -4125,26 +4948,60 @@ class AbstractASTVisitor:
 
 
 
-# class ExampleASTVisitor(AbstractASTVisitor):
-#
-#     def visit(self, node):
-# 
-#         if isinstance(node, NIdentifier):
-#             if len(node.name) < 3:  
-#               return False
-# 
-#             node.name = "FNORD"
-#             return True
-#     
-#         elif isinstance(node, NIntegerExpression):
-# 
-#             node.numString = "42"
-#             return True
-# 
-#         else:
-#             return True
+class AbstractASTExpressionVisitor(AbstractASTVisitor):
+
+    def visit_expression(self, node):
+        raise NotImplementedError(NOT_IMPLEMENTED)
+
+    def visit(self, node):
+        if (isinstance(node, NProgram) or
+            isinstance(node, NStatement) or isinstance(node, NLValueContainer) or isinstance(node, NRange) or isinstance(node, NIteration) or
+            isinstance(node, NLValueOrVariableDeclaration) or isinstance(node, NElseIfClause) or 
+            isinstance(node, NSwitchNormalCase) or isinstance(node, NContenttypeNormalCase)
+        ):
+
+            return node.visit_children(self)
+
+        elif isinstance(node, NExpression):
+
+            return self.visit_expression(node)
+
+        elif isinstance(node, NArrayIndexingIndex) or isinstance(node, NArg) or isinstance(node, NSWITCHNormalCase) or isinstance(node, NCONTENTTYPENormalCase):  
+            # we only reach these through expressions though
+    
+            return node.visit_children(self)
+    
+        else:
+
+            return True
 
 
+
+
+class AbstractASTTypeVisitor(AbstractASTVisitor):
+    
+    def visit_type(self, node):
+        raise NotImplementedError(NOT_IMPLEMENTED)
+
+    def visit(self, node):
+        if (isinstance(node, NProgram) or
+            isinstance(node, NStatement) or isinstance(node, NLValueContainer) or isinstance(node, NRange) or isinstance(node, NIteration) or
+            isinstance(node, NLValueOrVariableDeclaration) or isinstance(node, NElseIfClause) or 
+            isinstance(node, NSwitchNormalCase) or isinstance(node, NContenttypeNormalCase) or
+            isinstance(node, NParam) or
+            isinstance(node, NTypeClarifiedExpression) or isinstance(node, NVariantBoxCastExpression) or
+            isinstance(node, NTypeClarificationIndex) or isinstance(node, NVariantBoxCastIndex)
+        ):
+
+            return node.visit_children(self)
+
+        elif isinstance(node, NType):
+
+            return self.visit_type(node)
+
+        else:
+
+            return True
 
 
   
