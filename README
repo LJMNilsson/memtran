@@ -4,4 +4,6 @@ It is very far from completed, but I provide it here anyway. We will see how far
 
 The Memtran compiler is provided under the GPL version 3. User level documentation is provided under the Creative Commons Attribution-ShareAlike 4.0 International license (see https://creativecommons.org/licenses/by-sa/4.0/legalcode ). Standard libraries, if any, will be licensed under the MIT license. Further, the compiler will interface LLVM, which comes with its own licensing terms. 
 
+For an overview of what is planned for the language, see https://github.com/LJMNilsson/memtran/doc/future_docs_for_v0point1/presentation_utkast.pdf .
+
 Comments and questions are welcome at mani@memtran.org . 
