@@ -21,10 +21,10 @@ b ' int = a[24]
 test_array ' either_or = a
 
 
-/*
+
 for it over a,
     jt in a indexfactor -1 indexoffset 2 
 :
     it = jt
 ;
-*/
+

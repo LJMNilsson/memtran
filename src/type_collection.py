@@ -26,7 +26,6 @@ import name_mangler
 # Returns a dictionary of type declarations with definitions, and annotated with mangled type name. 
 # And checks for duplicate names.
 # Returns False if a duplicate was found! 
-# TODO: Add functionality to check for duplicate names in other modules (directly) imported
 
 def gather(astProgram, mangledModuleName, directlyImportedTypesDictDict):
 
@@ -64,8 +63,6 @@ def gather(astProgram, mangledModuleName, directlyImportedTypesDictDict):
 
 
 class _CheckTypesVisitor(AbstractASTVisitor):
-
-    # TODO: add the whole module identifier business!
 
 
     def __init__(self, allowedParamNamesList, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict):
@@ -219,6 +216,14 @@ def check(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictD
 
     
     return True
+
+
+
+
+
+
+
+
 
 
 

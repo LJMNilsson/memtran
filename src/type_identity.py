@@ -23,7 +23,7 @@ from ast import *
 
 
 
-_MAX_TYPE_MATCH_LEVEL = 20
+
 
 
 
@@ -36,23 +36,14 @@ _MAX_TYPE_MATCH_LEVEL = 20
     #    int matchDepth    
     # ); 
 
-def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, matchDepth):
+def match_as_below(tRaw, inferredMatchTypeRaw, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict):
+
+    t = concretize(tRaw, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
+    inferredMatchType = concretize(inferredMatchTypeRaw, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
     if isinstance(t, NIdentifierType):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
+        if isinstance(inferredMatchType, NIdentifierType):
             
 
             if (t.moduleNameOrNull is None) and (inferredMatchType.moduleNameOrNull is None) and (t.name.name == inferredMatchType.name.name):  
@@ -62,56 +53,19 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
                 (not inferredMatchType.moduleNameOrNull is None) and (t.name.name == inferredMatchType.name.name) and 
                     (t.moduleNameOrNull.name == inferredMatchType.moduleNameOrNull.name)
             ):
-                return True 
+                return True
 
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
+            else:
 
-            return match_as_below(
-                t.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
+                return False 
 
         else:
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
+            return False
 
-            return match_as_below(
-                t.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                inferredMatchType,
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
 
     elif isinstance(t, NNilType):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NNilType):
+        if isinstance(inferredMatchType, NNilType):
 
             return True
 
@@ -122,31 +76,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NBoolType):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NBoolType):
+        if isinstance(inferredMatchType, NBoolType):
 
             return True
 
@@ -156,31 +86,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NI8Type):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NI8Type):
+        if isinstance(inferredMatchType, NI8Type):
 
             return True
 
@@ -190,31 +96,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NI16Type):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NI16Type):
+        if isinstance(inferredMatchType, NI16Type):
 
             return True
 
@@ -224,31 +106,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NI32Type):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NI32Type):
+        if isinstance(inferredMatchType, NI32Type):
 
             return True
 
@@ -258,31 +116,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NI64Type):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NI64Type):
+        if isinstance(inferredMatchType, NI64Type):
 
             return True
 
@@ -292,31 +126,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NISizeType):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NISizeType):
+        if isinstance(inferredMatchType, NISizeType):
 
             return True
 
@@ -326,31 +136,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NU8Type):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NU8Type):
+        if isinstance(inferredMatchType, NU8Type):
 
             return True
 
@@ -360,31 +146,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NU16Type):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NU16Type):
+        if isinstance(inferredMatchType, NU16Type):
 
             return True
 
@@ -394,31 +156,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NU32Type):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NU32Type):
+        if isinstance(inferredMatchType, NU32Type):
 
             return True
 
@@ -428,31 +166,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NU64Type):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NU64Type):
+        if isinstance(inferredMatchType, NU64Type):
 
             return True
 
@@ -462,31 +176,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NUSizeType):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NUSizeType):
+        if isinstance(inferredMatchType, NUSizeType):
 
             return True
 
@@ -496,31 +186,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NF32Type):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NF32Type):
+        if isinstance(inferredMatchType, NF32Type):
 
             return True
 
@@ -530,31 +196,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NF64Type):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NF64Type):
+        if isinstance(inferredMatchType, NF64Type):
 
             return True
 
@@ -564,37 +206,12 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NDynamicArrayType):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NDynamicArrayType):
+        if isinstance(inferredMatchType, NDynamicArrayType):
 
             return match_as_below(
                 t.valueType,
                 inferredMatchType.valueType,
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
             )
 
         else:
@@ -603,31 +220,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NStructType):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NStructType):
+        if isinstance(inferredMatchType, NStructType):
 
             if t.tag.name != inferredMatchType.tag.name:
                 return False
@@ -642,8 +235,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
                 postTypeMatchResult = match_as_below(
                     t.members[i].theType,
                     inferredMatchType.members[i].theType,
-                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                    matchDepth
+                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                 )
 
                 if postTypeMatchResult != True:
@@ -657,41 +249,18 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NVariantBoxType):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NVariantBoxType):
+        if isinstance(inferredMatchType, NVariantBoxType):
 
             if len(t.types) != len(inferredMatchType.types):
                 return False
+            
+            # Note: order of type cases _is_ currently significant!!!
 
             for i in range(0, len(t.types)):
                 matchResult = match_as_below(
                     t.types[i],
                     inferredMatchType.types[i],
-                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                    matchDepth
+                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                 )
 
                 if matchResult != True:
@@ -705,31 +274,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
 
     elif isinstance(t, NFunctionType):
 
-        if isinstance(inferredMatchType, NParametrizedIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                t,
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NFunctionType):
+        if isinstance(inferredMatchType, NFunctionType):
 
             if len(t.typeArgs) != len(inferredMatchType.typeArgs):
                 return False
@@ -749,8 +294,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
                     matchResult = match_as_below(
                         typeArgs[i].argType,
                         inferredMatchType.typeArgs[i].argType,
-                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                        matchDepth
+                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                     )
                     if matchResult != True:
                         return matchResult
@@ -763,8 +307,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
                     matchResult = match_as_below(
                         t.typeArgs[i].argType,
                         inferredMatchType.typeArgs[i].argType,
-                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                        matchDepth
+                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                     )
                     if matchResult != True:
                         return matchResult
@@ -777,8 +320,7 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
                 matchResult = match_as_below(
                     t.returnTypes[i],
                     inferredMatchType.returnTypes[i],
-                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                    matchDepth
+                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                 )
                 if matchResult != True:
                     return matchResult            
@@ -791,6 +333,8 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
             return False
 
     elif isinstance(t, NParametrizedIdentifierType):
+
+        # in this case, it must be a recursive parametrized type. So we match simply on name identity, AND arg identity!
 
         if isinstance(inferredMatchType, NParametrizedIdentifierType):
 
@@ -806,49 +350,18 @@ def match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict
                         match_as_below(
                             t.params[i],
                             inferredMatchType.params[i],
-                            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                            matchDepth
+                            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                         )
                     )
 
                 if all(matchResults):
                     return True
 
-            # otherwise, continue here below:
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below( 
-                create_substitution(t, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                create_substitution(inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        elif isinstance(inferredMatchType, NIdentifierType):
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
-                return False
-
-            return match_as_below(
-                create_substitution(t, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                inferredMatchType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
-
-        else:
-
-            if matchDepth >= _MAX_TYPE_MATCH_LEVEL:
+            else:
                 return False            
 
-            return match_as_below(
-                create_substitution(t, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
-                inferredMatchType,
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                matchDepth + 1
-            )
+        else:
+            return False
 
     else:
         util.log_error(t.lineNr, t.rowNr, "Trying to match on unmatchy kind of type. SHOULD NOT HAPPEN")
@@ -1030,11 +543,42 @@ def create_substitution_helper(unsubstitutedType, paramsDict):
 
 
 
-# NOTE: A CONCRETIZER IS A BAD IDEA DUE TO RECURSIVE TYPES. AVOID IT AT ALL COSTS.
 
 
 
+# returns a "concretized type" of the theType, if possible, otherwise returns theType or something inbetween.
+def concretize(theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict):
 
+    recursionIdentifierList = []
 
+    accumulatedType = theType
+
+    while True:
+        if isinstance(accumulatedType, NIdentifierType):
+            recTuple = (None, accumulatedType.name.name)
+            if not accumulatedType.moduleNameOrNull is None:
+                recTuple = (accumulatedType.moduleNameOrNull.name, accumulatedType.name.name)
+
+            if recTuple in recursionIdentifierList:
+                break
+            else:
+                recursionIdentifierList.append(recTuple)
+                accumulatedType = accumulatedType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
+
+        elif isinstance(accumulatedType, NParametrizedIdentifierType):
+            recTuple = (None, accumulatedType.name.name)
+            if not accumulatedType.moduleNameOrNull is None:
+                recTuple = (accumulatedType.moduleNameOrNull.name, accumulatedType.name.name)
+
+            if recTuple in recursionIdentifierList:
+                break
+            else:
+                recursionIdentifierList.append(recTuple)
+                accumulatedType = create_substitution(accumulatedType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
+
+        else:
+            break
+
+    return accumulatedType.create_copy()   
 
 

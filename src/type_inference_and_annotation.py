@@ -27,7 +27,7 @@ from type_identity import *
 ################### INTERNAL TYPES FOR TYPE INFERENCE AID ###################
 
 
-class NAlternativePossibilitiesType(NType):
+class NAlternativePossibilitiesType(NType):    # TODO: maybe remove this type if not needed!
 
     # Arraylist<NType> alternativesList;
     
@@ -103,7 +103,7 @@ class NUnspecializedTemplateType(NType):
     # TODO (if needed)        
 
 
-class NInsertVariantBoxingHere(NType):  # we probably won't need this type
+class NInsertVariantBoxingHere(NType):  # TODO: we probably won't need this type
 
     # NType constituentType
 
@@ -152,11 +152,103 @@ floatingChoices = [NF64Type(0, 0), NF32Type(0, 0)]
 # Also annotates (certain, currently) identifier expressions with "identifierType" field (which, in case of indexings may not be the same as 'inferredType')
 
 def type_infer_and_annotate_expression(
-    expr, inferredTypeFromBelow, 
+    expr, inferredTypeFromBelowRaw, 
     typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
     funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
     beSilentFlag
 ):
+
+    inferredTypeFromBelow = concretize(inferredTypeFromBelowRaw, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
+
+    # First, check whether we are matching against a variant-box type! 
+
+    if isinstance(inferredTypeFromBelow, NVariantBoxType):
+
+        if isinstance(expr, NVariantBoxExpression):
+
+            typeResult, exprResult = type_infer_and_annotate_expression(
+                expr.expression, NUnknownType(expr.lineNr, expr.rowNr),
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                beSilentFlag
+            )
+            if typeResult == False:
+                return (False, None)
+
+            for typ in inferredTypeFromBelow.types:
+
+                matchResult = match_as_below(
+                    concretize(typ, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
+                    concretize(exprResult, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
+                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict 
+                )
+
+                if matchResult:
+
+                    if not beSilentFlag:
+                        exprResult.expression.inferredType = concretize(typeResult.create_copy(), typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict) 
+                        exprResult.inferredType = inferredTypeFromBelow.createCopy()
+
+                    return (inferredTypeFromBelow.create_copy(), exprResult)
+
+            # and if we are still here:
+            if not beSilentFlag:
+                util.log_error(expr.lineNr, expr.rowNr, "Type mismatch.")
+            return (False, None)
+                
+        
+        else:
+
+            typeResult, exprResult = type_infer_and_annotate_expression(
+                expr, NUnknownType(expr.lineNr, expr.rowNr),
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                beSilentFlag
+            )
+            if typeResult == False:
+                return (False, None)
+
+            matchResult = extended_match_as_below(
+                inferredTypeFromBelow,
+                typeResult,
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict 
+            ) 
+
+            if matchResult == "several":
+        
+                if not beSilentFlag:
+                    util.log_error(expr.lineNr, expr.rowNr, "Expression can be implicitly variant-boxed in several ways. Please type specify.")
+                return (False, None)
+
+            elif matchResult == "vbox":
+
+                if not beSilentFlag:
+                    # annotation
+                    exprResult.inferredType = concretize(typeResult.create_copy(), typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict) 
+
+                vbox = NVariantBoxExpression(expr.lineNr, expr.rowNr, exprResult)
+
+                if not beSilentFlag:
+                    # annotate
+                    vbox.inferredType = inferredTypeFromBelow.create_copy()
+
+                return (inferredTypeFromBelow.create_copy(), vbox)
+
+            elif matchResult:
+
+                if not beSilentFlag:
+                    exprResult.inferredType = concretize(typeResult.create_copy(), typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict) 
+
+                return (typeResult.create_copy(), exprResult)
+
+            else:
+                if not beSilentFlag:
+                    util.log_error(expr.lineNr, expr.rowNr, "Type mismatch.")
+                return (False, None)
+
+   
+    
+    # If we are still here, continue below...
     
     if isinstance(expr, NIdentifierExpression):  
 
@@ -298,6 +390,7 @@ def type_infer_and_annotate_expression(
             if len(expr.indexings) > 0:
                 util.log_error(expr.lineNr, expr.rowNr, "Trying to index a function type value somehow (no indexings are possible on such values).")
                 return (False, None)
+            
 
 
             matchResults = []
@@ -309,10 +402,10 @@ def type_infer_and_annotate_expression(
                 else:
                     alt, mangleName = tupleOrTemplateEntry
     
-                    matchResult = extended_match_as_below(
+                    matchResult = unknownextended_match_as_below(
                         inferredTypeFromBelow,
                         alt,
-                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict 
                     )
 
                     matchResults.append(matchResult)
@@ -344,36 +437,13 @@ def type_infer_and_annotate_expression(
                         util.log_error(expr.lineNr, expr.rowNr, "Please type specify the template specialization which here is referred to as a function type value.")
                     return (False, None)
 
-                elif matchResults[theFoundIndex] == "several":
-    
-                    if not beSilentFlag:
-                        util.log_error(expr.lineNr, expr.rowNr, "Several type cases can be selected with implicit variant-boxing. Please type specify.")
-                    return (False, None)
-
-                elif matchResults[theFoundIndex] == "vbox":
-
-                    alt, mangleName = myAlternativesList[i]
-
-                    if not beSilentFlag:
-                        # annotation
-                        expr.inferredType = alt
-                        expr.mangledName = mangleName
-
-                    vbox = NVariantBoxExpression(expr.lineNr, expr.rowNr, expr)
-
-                    if not beSilentFlag:
-                        # annotate
-                        vbox.inferredType = inferredTypeFromBelow.create_copy()
-
-                    return (inferredTypeFromBelow.create_copy(), vbox)
-
                 else:  # Then it should be True hopefully...
 
                     alt, mangleName = myAlternativesList[i]
 
                     if not beSilentFlag:
                         # annotating...
-                        expr.inferredType = alt
+                        expr.inferredType = concretize(alt, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
                         expr.mangledName = mangleName
         
                     return (alt.create_copy(), expr)    
@@ -390,9 +460,9 @@ def type_infer_and_annotate_expression(
             # Assume there is only one def in the definitions list, which should be the case hopefully...
 
             if not beSilentFlag:
-                expr.identifierType = foundDefinitions[0].theType.create_copy() 
+                expr.identifierType = concretize(foundDefinitions[0].theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)  
 
-            accumulatedType = foundDefinitions[0].theType
+            accumulatedType = expr.identifierType.create_copy()
 
             for indexing in expr.indexings:
 
@@ -410,44 +480,13 @@ def type_infer_and_annotate_expression(
                     if isinstance(accumulatedType, NDynamicArrayType):
 
                         if not beSilentFlag:
-                            indexing.inferredType = accumulatedType.valueType.create_copy()
+                            indexing.inferredType = concretize(accumulatedType.valueType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
-                        accumulatedType = indexing.inferredType
+                        accumulatedType = indexing.inferredType.create_copy()
 
                     else:
-                        # It may still match, just not concretely...
-
-                        depthCounter = 0
-
-                        while True:
-                            if depthCounter > 20:
-                                if not beSilentFlag:
-                                    util.log_error(indexing.lineNr, indexing.rowNr, "Failed to concretize type (at depth 20).")
-                                return (False, None)
-
-                            if isinstance(accumulatedType, NIdentifierType):
-
-                                accumulatedType = accumulatedType.get_definition(typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
-                                depthCounter += 1
-
-                            elif isinstance(accumulatedType, NParametrizedIdentifierType):
-
-                                accumulatedType = create_substitution(accumulatedType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
-                                depthCounter += 1
-
-                            elif isinstance(accumulatedType, NDynamicArrayType):
-                                break
-                            else:
-                                if not beSilentFlag:
-                                    util.log_error(indexing.lineNr, indexing.rowNr, "Trying to array index something that isn't of array type.")
-                                return (False, None)
-
-                        # Now we can assume it's a NDynamicArrayType...:
-                      
-                        if not beSilentFlag:
-                            indexing.inferredType = accumulatedType.valueType.create_copy()
-
-                        accumulatedType = indexing.inferredType
+                        util.log_error(indexing.lineNr, indexing.rowNr, "Trying to array index a non-array value.")
+                        return (False, None)
 
 
                 elif isinstance(indexing, NStructIndexingIndex):
@@ -466,9 +505,9 @@ def type_infer_and_annotate_expression(
                             return (False, None)
 
                         if not beSilentFlag:
-                            indexing.inferredType = foundMemberType.create_copy()
+                            indexing.inferredType = concretize(foundMemberType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
-                        accumulatedType = foundMemberType.create_copy()
+                        accumulatedType = indexing.inferredType.create_copy()
 
                     else:
                         if not beSilentFlag:
@@ -484,10 +523,9 @@ def type_infer_and_annotate_expression(
                         for typeCase in accumulatedType.types:
                             
                             matchResult = match_as_below(    # we better not do extended match here!!!
-                                typeCase, 
-                                indexing.theType,
-                                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                                0
+                                concretize(typeCase, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
+                                concretize(indexing.theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
+                                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                             )
                             if matchResult:
                                 if not foundTypeCase is None:
@@ -496,7 +534,7 @@ def type_infer_and_annotate_expression(
                                     return (False, None)                                    
 
                                 else:
-                                    foundTypeCase = typeCase.create_copy()
+                                    foundTypeCase = concretize(typeCase, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
                         if not beSilentFlag:
                             indexing.inferredType = foundTypeCase
@@ -512,16 +550,15 @@ def type_infer_and_annotate_expression(
 
                     matchResult = match_as_below(    # should this be extended -- no!
                         accumulatedType, 
-                        indexing.theType,
-                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                        0
+                        concretize(indexing.theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
+                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                     )
                     if matchResult:
 
                         if not beSilentFlag:
-                            indexing.inferredType = indexing.theType.create_copy()
+                            indexing.inferredType = concretize(indexing.theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict) 
 
-                        accumulatedType = indexing.theType.create_copy()
+                        accumulatedType = indexing.inferredType.create_copy()
 
                     else:
                         if not beSilentFlag: 
@@ -533,44 +570,23 @@ def type_infer_and_annotate_expression(
                     return (False, None)
 
 
-            matchResult = extended_match_as_below(
+            matchResult = unknownextended_match_as_below(
                 inferredTypeFromBelow,
                 accumulatedType,
                 typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
             ) 
 
-            if matchResult == "several":
-    
-                if not beSilentFlag:
-                    util.log_error(expr.lineNr, expr.rowNr, "Several type cases can be selected with implicit variant-boxing. Please type specify.")
-                return (False, None)
-
-            elif matchResult == "vbox":
+            if matchResult:
 
                 if not beSilentFlag:
-                    # annotation
-                    expr.inferredType = foundDefinitions[0].theType.create_copy()
+                    expr.inferredType = concretize(foundDefinitions[0].theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict) 
                     expr.mangledName = foundDefinitions[0].mangledName
 
-                vbox = NVariantBoxExpression(expr.lineNr, expr.rowNr, expr)
-
-                if not beSilentFlag:
-                    # annotate
-                    vbox.inferredType = inferredTypeFromBelow.create_copy()
-
-                return (inferredTypeFromBelow.create_copy(), vbox)
-
-            elif matchResult:
-
-                if not beSilentFlag:
-                    expr.inferredType = foundDefinitions[0].theType.create_copy()
-                    expr.mangledName = foundDefinitions[0].mangledName
-
-                return (foundDefinitions[0].theType.create_copy(), expr)
+                return (expr.inferredType.create_copy(), expr)
                 
             else:
                 if not beSilentFlag:
-                    util.log_error(expr.lineNr, expr.rowNr, "Type mismatch.")
+                    util.log_error(expr.lineNr, expr.rowNr, "Type mismatch. #808088080")
                     print("Expected: ", end='')
                     inferredTypeFromBelow.print_it()
                     print("")  # newline
@@ -589,34 +605,34 @@ def type_infer_and_annotate_expression(
         elif isinstance(foundDefinitions[0], ParamEntry):
 
             if not beSilentFlag:
-                expr.identifierType = foundDefinitions[0].definitionParam.theType.create_copy() 
+                expr.identifierType = concretize(foundDefinitions[0].definitionParam.theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
-            accumulatedType = foundDefinitions[0].definitionParam.theType
+            accumulatedType = expr.identifierType.create_copy()
 
             for indexing in expr.indexings:
 
                 if isinstance(indexing, NArrayIndexingIndex):
 
+                    indexTypeResult, indexExprResult = type_infer_and_annotate_expression(
+                        indexing.indexExpression, NISizeType(indexing.lineNr, indexing.rowNr),
+                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                        funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                        beSilentFlag
+                    ) 
+                    if indexTypeResult == False:
+                        return (False, None)
+
                     if isinstance(accumulatedType, NDynamicArrayType):
 
-                        indexTypeResult, indexExprResult = type_infer_and_annotate_expression(
-                            indexing.indexExpression, accumulatedType.valueType,
-                            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-                            funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
-                            beSilentFlag
-                        ) 
-                        if indexTypeResult == False:
-                            return (False, None)
-
                         if not beSilentFlag:
-                            indexing.inferredType = indexTypeResult.create_copy()
+                            indexing.inferredType = concretize(accumulatedType.valueType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
-                        accumulatedType = indexTypeResult
+                        accumulatedType = indexing.inferredType.create_copy()
 
                     else:
-                        if not beSilentFlag:
-                            util.log_error(indexing.lineNr, indexing.rowNr, "Trying to array index something that isn't of array type.")
+                        util.log_error(indexing.lineNr, indexing.rowNr, "Trying to array index a non-array value.")
                         return (False, None)
+
 
                 elif isinstance(indexing, NStructIndexingIndex):
 
@@ -634,9 +650,9 @@ def type_infer_and_annotate_expression(
                             return (False, None)
 
                         if not beSilentFlag:
-                            indexing.inferredType = foundMemberType.create_copy()
+                            indexing.inferredType = concretize(foundMemberType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
-                        accumulatedType = foundMemberType.create_copy()
+                        accumulatedType = indexing.inferredType.create_copy()
 
                     else:
                         if not beSilentFlag:
@@ -652,10 +668,9 @@ def type_infer_and_annotate_expression(
                         for typeCase in accumulatedType.types:
                             
                             matchResult = match_as_below(    # we better not do extended match here!!!
-                                typeCase, 
-                                indexing.theType,
-                                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                                0
+                                concretize(typeCase, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
+                                concretize(indexing.theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
+                                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                             )
                             if matchResult:
                                 if not foundTypeCase is None:
@@ -664,7 +679,7 @@ def type_infer_and_annotate_expression(
                                     return (False, None)                                    
 
                                 else:
-                                    foundTypeCase = typeCase.create_copy()
+                                    foundTypeCase = concretize(typeCase, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
                         if not beSilentFlag:
                             indexing.inferredType = foundTypeCase
@@ -680,16 +695,15 @@ def type_infer_and_annotate_expression(
 
                     matchResult = match_as_below(    # should this be extended -- no!
                         accumulatedType, 
-                        indexing.theType,
-                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                        0
+                        concretize(indexing.theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict), 
+                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                     )
                     if matchResult:
 
                         if not beSilentFlag:
-                            indexing.inferredType = indexing.theType.create_copy()
+                            indexing.inferredType = concretize(indexing.theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict) 
 
-                        accumulatedType = indexing.theType.create_copy()
+                        accumulatedType = indexing.inferredType.create_copy()
 
                     else:
                         if not beSilentFlag: 
@@ -701,34 +715,13 @@ def type_infer_and_annotate_expression(
                     return (False, None)
 
 
-            matchResult = extended_match_as_below(
+            matchResult = unknownextended_match_as_below(
                 inferredTypeFromBelow,
                 accumulatedType,
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict 
             ) 
 
-            if matchResult == "several":
-    
-                if not beSilentFlag:
-                    util.log_error(expr.lineNr, expr.rowNr, "Several type cases can be selected with implicit variant-boxing. Please type specify.")
-                return (False, None)
-
-            elif matchResult == "vbox":
-
-                if not beSilentFlag:
-                    # annotation
-                    expr.inferredType = accumulatedType.create_copy()
-                    expr.mangledName = foundDefinitions[0].mangledName 
-
-                vbox = NVariantBoxExpression(expr.lineNr, expr.rowNr, expr)
-
-                if not beSilentFlag:
-                    # annotate
-                    vbox.inferredType = inferredTypeFromBelow.create_copy()
-
-                return (inferredTypeFromBelow.create_copy(), vbox)
-
-            elif matchResult:
+            if matchResult:
 
                 if not beSilentFlag:
                     expr.inferredType = accumulatedType.create_copy()
@@ -743,7 +736,7 @@ def type_infer_and_annotate_expression(
                     inferredTypeFromBelow.print_it()
                     print("")  # newline
                     print("Found: ", end='')
-                    foundType.print_it()
+                    accumulatedType.print_it()
                     print("") # newline
 
                 return (False, None)
@@ -753,34 +746,34 @@ def type_infer_and_annotate_expression(
             # The name into block entry should have a real type at this point, we presume or hope...
 
             if not beSilentFlag:
-                expr.identifierType = foundDefinitions[0].theType.create_copy() 
+                expr.identifierType = concretize(foundDefinitions[0].theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict) 
 
-            accumulatedType = foundDefinitions[0].theType
+            accumulatedType = expr.identifierType.create_copy()
 
             for indexing in expr.indexings:
 
                 if isinstance(indexing, NArrayIndexingIndex):
 
+                    indexTypeResult, indexExprResult = type_infer_and_annotate_expression(
+                        indexing.indexExpression, NISizeType(indexing.lineNr, indexing.rowNr),
+                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                        funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                        beSilentFlag
+                    ) 
+                    if indexTypeResult == False:
+                        return (False, None)
+
                     if isinstance(accumulatedType, NDynamicArrayType):
 
-                        indexTypeResult, indexExprResult = type_infer_and_annotate_expression(
-                            indexing.indexExpression, accumulatedType.valueType,
-                            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-                            funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
-                            beSilentFlag
-                        ) 
-                        if indexTypeResult == False:
-                            return (False, None)
-
                         if not beSilentFlag:
-                            indexing.inferredType = indexTypeResult.create_copy()
+                            indexing.inferredType = concretize(accumulatedType.valueType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
-                        accumulatedType = indexTypeResult
+                        accumulatedType = indexing.inferredType.create_copy()
 
                     else:
-                        if not beSilentFlag:
-                            util.log_error(indexing.lineNr, indexing.rowNr, "Trying to array index something that isn't of array type.")
+                        util.log_error(indexing.lineNr, indexing.rowNr, "Trying to array index a non-array value.")
                         return (False, None)
+
 
                 elif isinstance(indexing, NStructIndexingIndex):
 
@@ -798,9 +791,9 @@ def type_infer_and_annotate_expression(
                             return (False, None)
 
                         if not beSilentFlag:
-                            indexing.inferredType = foundMemberType.create_copy()
+                            indexing.inferredType = concretize(foundMemberType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
-                        accumulatedType = foundMemberType.create_copy()
+                        accumulatedType = indexing.inferredType.create_copy()
 
                     else:
                         if not beSilentFlag:
@@ -816,10 +809,9 @@ def type_infer_and_annotate_expression(
                         for typeCase in accumulatedType.types:
                             
                             matchResult = match_as_below(    # we better not do extended match here!!!
-                                typeCase, 
-                                indexing.theType,
-                                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                                0
+                                concretize(typeCase, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
+                                concretize(indexing.theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
+                                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                             )
                             if matchResult:
                                 if not foundTypeCase is None:
@@ -828,7 +820,7 @@ def type_infer_and_annotate_expression(
                                     return (False, None)                                    
 
                                 else:
-                                    foundTypeCase = typeCase.create_copy()
+                                    foundTypeCase = concretize(typeCase, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
                         if not beSilentFlag:
                             indexing.inferredType = foundTypeCase
@@ -844,16 +836,15 @@ def type_infer_and_annotate_expression(
 
                     matchResult = match_as_below(    # should this be extended -- no!
                         accumulatedType, 
-                        indexing.theType,
-                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict,
-                        0
+                        concretize(indexing.theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict), 
+                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                     )
                     if matchResult:
 
                         if not beSilentFlag:
-                            indexing.inferredType = indexing.theType.create_copy()
+                            indexing.inferredType = concretize(indexing.theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict) 
 
-                        accumulatedType = indexing.theType.create_copy()
+                        accumulatedType = indexing.inferredType.create_copy()
 
                     else:
                         if not beSilentFlag: 
@@ -865,34 +856,13 @@ def type_infer_and_annotate_expression(
                     return (False, None)
 
 
-            matchResult = extended_match_as_below(
+            matchResult = unknownextended_match_as_below(
                 inferredTypeFromBelow,
                 accumulatedType,
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict 
             ) 
 
-            if matchResult == "several":
-    
-                if not beSilentFlag:
-                    util.log_error(expr.lineNr, expr.rowNr, "Several type cases can be selected with implicit variant-boxing. Please type specify.")
-                return (False, None)
-
-            elif matchResult == "vbox":
-
-                if not beSilentFlag:
-                    # annotation
-                    expr.inferredType = accumulatedType.create_copy()
-                    # NOTA BENE -- we don't set a mangled name for these -- expect code generation to handle the names into block... 
-
-                vbox = NVariantBoxExpression(expr.lineNr, expr.rowNr, expr)
-
-                if not beSilentFlag:
-                    # annotate
-                    vbox.inferredType = inferredTypeFromBelow.create_copy()
-
-                return (inferredTypeFromBelow.create_copy(), vbox)
-
-            elif matchResult:
+            if matchResult:
 
                 if not beSilentFlag:
                     expr.inferredType = accumulatedType.create_copy()
@@ -916,37 +886,17 @@ def type_infer_and_annotate_expression(
             return (False, None)
 
 
-    elif isinstance(expr, NNilExpression):
+    elif isinstance(expr, NNilExpression):  # TODO cont. here
 
         foundType = NNilType(expr.lineNr, expr.rowNr)
 
-        matchResult = extended_match_as_below(
+        matchResult = unknownextended_match_as_below(
             inferredTypeFromBelow,
             foundType,
-            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict 
         ) 
 
-        if matchResult == "several":
-    
-            if not beSilentFlag:
-                util.log_error(expr.lineNr, expr.rowNr, "Several type cases can be selected with implicit variant-boxing. Please type specify.")
-            return (False, None)
-
-        elif matchResult == "vbox":
-
-            if not beSilentFlag:
-                # annotation
-                expr.inferredType = foundType.create_copy() 
-
-            vbox = NVariantBoxExpression(expr.lineNr, expr.rowNr, expr)
-
-            if not beSilentFlag:
-                # annotate
-                vbox.inferredType = inferredTypeFromBelow.create_copy()
-
-            return (inferredTypeFromBelow.create_copy(), vbox)
-
-        elif matchResult:
+        if matchResult:
             
             if not beSilentFlag:
                 expr.inferredType = foundType
@@ -969,33 +919,13 @@ def type_infer_and_annotate_expression(
 
         foundType = NBoolType(expr.lineNr, expr.rowNr)
 
-        matchResult = extended_match_as_below(
+        matchResult = unknownextended_match_as_below(
             inferredTypeFromBelow,
             foundType,
-            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict 
         ) 
 
-        if matchResult == "several":
-    
-            if not beSilentFlag:
-                util.log_error(expr.lineNr, expr.rowNr, "Several type cases can be selected with implicit variant-boxing. Please type specify.")
-            return (False, None)
-
-        elif matchResult == "vbox":
-
-            if not beSilentFlag:
-                # annotation
-                expr.inferredType = foundType.create_copy() 
-
-            vbox = NVariantBoxExpression(expr.lineNr, expr.rowNr, expr)
-
-            if not beSilentFlag:
-                # annotate
-                vbox.inferredType = inferredTypeFromBelow.create_copy()
-
-            return (inferredTypeFromBelow.create_copy(), vbox)
-
-        elif matchResult:
+        if matchResult:
 
             if not beSilentFlag:
                 expr.inferredType = foundType
@@ -1018,31 +948,13 @@ def type_infer_and_annotate_expression(
 
         for foundType in integerChoices:
 
-            matchResult = extended_match_as_below(
+            matchResult = unknownextended_match_as_below(
                 inferredTypeFromBelow,
                 foundType,
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict 
             ) 
 
-            if matchResult == "several":
-        
-                continue       # This case should be very rare or non-existent actually
-
-            elif matchResult == "vbox":
-
-                if not beSilentFlag:
-                    # annotation
-                    expr.inferredType = foundType.create_copy() 
-
-                vbox = NVariantBoxExpression(expr.lineNr, expr.rowNr, expr)
-
-                if not beSilentFlag:
-                    # annotate
-                    vbox.inferredType = inferredTypeFromBelow.create_copy()
-
-                return (inferredTypeFromBelow.create_copy(), vbox)
-
-            elif matchResult:
+            if matchResult:
 
                 if not beSilentFlag:
                     expr.inferredType = foundType.create_copy()
@@ -1064,31 +976,13 @@ def type_infer_and_annotate_expression(
 
         for foundType in floatingChoices:
  
-            matchResult = extended_match_as_below(
+            matchResult = unknownextended_match_as_below(
                 inferredTypeFromBelow,
                 foundType,
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
             ) 
 
-            if matchResult == "several":
-        
-                continue       # This case should be very rare or non-existent actually
-
-            elif matchResult == "vbox":
-
-                if not beSilentFlag:
-                    # annotation
-                    expr.inferredType = foundType.create_copy() 
-
-                vbox = NVariantBoxExpression(expr.lineNr, expr.rowNr, expr)
-
-                if not beSilentFlag:
-                    # annotate
-                    vbox.inferredType = inferredTypeFromBelow.create_copy()
-
-                return (inferredTypeFromBelow.create_copy(), vbox)
-
-            elif matchResult:
+            if matchResult:
 
                 if not beSilentFlag:
                     expr.inferredType = foundType.create_copy()
@@ -1099,7 +993,7 @@ def type_infer_and_annotate_expression(
         # (if we are still here, continue below)
 
         if not beSilentFlag:
-            util.log_error(expr.lineNr, expr.rowNr, "Found no implmented functioning type alternative for this floating point number literal.")
+            util.log_error(expr.lineNr, expr.rowNr, "Found no implemented functioning type alternative for this floating point number literal.")
             print("Expected: ", end='')
             inferredTypeFromBelow.print_it()
             print("")  # newline
@@ -1110,33 +1004,13 @@ def type_infer_and_annotate_expression(
 
         foundType = NDynamicArrayType(expr.lineNr, expr.rowNr, NU8Type(expr.lineNr, expr.rowNr))
 
-        matchResult = extended_match_as_below(
+        matchResult = unknownextended_match_as_below(
             inferredTypeFromBelow,
             foundType,
-            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
+            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
         ) 
 
-        if matchResult == "several":
-    
-            if not beSilentFlag:
-                util.log_error(expr.lineNr, expr.rowNr, "Several type cases can be selected with implicit variant-boxing. Please type specify.")
-            return (False, None)
-
-        elif matchResult == "vbox":
-
-            if not beSilentFlag:
-                # annotation
-                expr.inferredType = foundType.create_copy() 
-
-            vbox = NVariantBoxExpression(expr.lineNr, expr.rowNr, expr)
-
-            if not beSilentFlag:
-                # annotate
-                vbox.inferredType = inferredTypeFromBelow.create_copy()
-
-            return (inferredTypeFromBelow.create_copy(), vbox)
-
-        elif matchResult:
+        if matchResult:
 
             if not beSilentFlag:
                 expr.inferredType = foundType
@@ -1184,14 +1058,14 @@ def type_infer_and_annotate_expression(
                         return (False, None)
 
                     if firstType is None:
-                        firstType = typeResult
+                        firstType = concretize(typeResult, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
                     else:
                         
-                        # how do we match correctly here -- trying extended_match_as_below simply, hope it is enough...
+                        # how do we match correctly here -- trying match_as_below simply, hope it is enough...
 
-                        matchResult = extended_match_as_below(
+                        matchResult = match_as_below(
                             firstType,
-                            typeResult,
+                            concretize(typeResult, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict),
                             typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict 
                         ) 
 
@@ -1211,7 +1085,7 @@ def type_infer_and_annotate_expression(
 
         elif isinstance(inferredTypeFromBelow, NDynamicArrayType):
 
-            expectedValueType = inferredTypeFromBelow.valueType
+            expectedValueType = concretize(inferredTypeFromBelow.valueType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
             newValues = []
 
@@ -1227,29 +1101,13 @@ def type_infer_and_annotate_expression(
                 if typeResult == False:
                     return (False, None)
 
-                matchResult = extended_match_as_below(
+                matchResult = match_as_below(
                     expectedValueType,
                     typeResult,
                     typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
                 )     
 
-                if matchResult == "several":
-            
-                    if not beSilentFlag:
-                        util.log_error(value.lineNr, value.rowNr, "Several type cases can be selected with implicit variant-boxing. Please type specify.")
-                    return (False, None)
-
-                elif matchResult == "vbox":
-
-                    vbox = NVariantBoxExpression(value.lineNr, value.rowNr, value)
-
-                    if not beSilentFlag:
-                        # annotate
-                        vbox.inferredType = expectedValueType.create_copy()
-
-                    newValues.append(vbox)
-
-                elif matchResult:
+                if matchResult:
 
                     newValues.append(value)
                     
@@ -1273,99 +1131,14 @@ def type_infer_and_annotate_expression(
             return (inferredTypeFromBelow.create_copy(), expr)
 
         else:
-            # It may match a NVariantBoxType, or match an identifier type or parametrized identifier type resolving into a NVariantBoxType
-
-            if len(expr.values) == 0:
-
-                if not beSilentFlag:
-                    util.log_error(expr.lineNr, expr.rowNr, "Current simple type inferrer unable to infer exact type of empty array expression. Please type specify.")
-                return (False, None)
-
-            else:
-
-                firstType = None
-
-                newValues = []
-
-                for value in expr.values:
-
-                    typeResult, exprResult = type_infer_and_annotate_expression(
-                        value, NUnknownType(value.lineNr, value.rowNr), 
-                        typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-                        funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
-                        beSilentFlag
-                    )
-
-                    if typeResult == False:
-                        return (False, None)
-
-                    if firstType is None:
-                        firstType = typeResult
-                    else:
-                        
-                        # how do we match correctly here -- trying extended_match_as_below simply, hope it is enough...
-
-                        matchResult = extended_match_as_below(
-                            firstType,
-                            typeResult,
-                            typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
-                        ) 
-
-                        if matchResult != True:
-                            if not beSilentFlag:
-                                util.log_error(expr.lineNr, expr.rowNr, "Array of disparate types. (Or alternatively, the compiler may be unsufficiently smart here.)")
-                            return (False, None)  
-
-                    newValues.append(exprResult)
-
-
-                inferredTypeFromTop = NDynamicArrayType(expr.lineNr, expr.rowNr, firstType.create_copy())
-
-                matchResult = extended_match_as_below(
-                    inferredTypeFromBelow,
-                    inferredTypeFromTop,
-                    typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
-                )
-                if matchResult == "several":
             
-                    if not beSilentFlag:
-                        util.log_error(expr.lineNr, expr.rowNr, "Several type cases can be selected with implicit variant-boxing. Please type specify.")
-                    return (False, None)
-
-                elif matchResult == "vbox":
-
-                    if not beSilentFlag:
-                        # annotation
-                        expr.values = newValues
-                        expr.inferredType = inferredTypeFromTop 
-
-                    vbox = NVariantBoxExpression(expr.lineNr, expr.rowNr, expr)
-
-                    if not beSilentFlag:
-                        # annotate
-                        vbox.inferredType = inferredTypeFromBelow.create_copy()
-
-                    return (inferredTypeFromBelow.create_copy(), vbox)
-
-                elif matchResult:
-
-                    if not beSilentFlag:
-                        expr.value = newValues
-                        expr.inferredType = inferredTypeFromTop
-
-                    return (inferredTypeFromTop.create_copy(), expr)
-                    
-                else:
-                    if not beSilentFlag:
-                        util.log_error(expr.lineNr, expr.rowNr, "Type mismatch.")
-                        print("Expected: ", end='')
-                        inferredTypeFromBelow.print_it()
-                        print("")  # newline
-                        print("Found: ", end='')
-                        inferredTypeFromTop.print_it()
-                        print("") # newline
-
-                    return (False, None)     
+            if not beSilentFlag:
+                util.log_error(expr.lineNr, expr.rowNr, "Type mismatch. Did not expect an array expression here.")
+                print("Expected: ", end='')
+                inferredTypeFromBelow.print_it()
+                print("")  # newline
+                   
+            return (False, None)     
 
     elif isinstance(expr, NArrayExpressionNoInitialization):
 
@@ -1427,13 +1200,15 @@ def type_infer_and_annotate_expression(
                 return (False, None)                
 
             if not beSilentFlag:
+                expr.repeatedValue = exprResult
+                expr.length = lenExprResult
                 expr.inferredType = NDynamicArrayType(expr.lineNr, expr.rowNr, typeResult.create_copy())
             
             return (expr.inferredType.create_copy(), expr)
             
         elif isinstance(inferredTypeFromBelow, NDynamicArrayType):
 
-            expectedIndexType = inferredTypeFromBelow.valueType
+            expectedIndexType = concretize(inferredTypeFromBelow.valueType, typeDict,  directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
             typeResult, exprResult = type_infer_and_annotate_expression(
                 expr.repeatedValue, expectedIndexType,
@@ -1455,77 +1230,21 @@ def type_infer_and_annotate_expression(
 
 
             if not beSilentFlag:
-                expr.inferredType = NDynamicArrayType(expr.lineNr, expr.rowNr, typeResult.create_copy())
+                expr.repeatedValue = exprResult
+                expr.length = lenExprResult
+                expr.inferredType = NDynamicArrayType(expr.lineNr, expr.rowNr, concretize(typeResult, typeDict,  directlyImportedTypesDictDict, otherImportedModulesTypeDictDict))
             
             return (expr.inferredType.create_copy(), expr)            
 
         else:
 
-            # It may match on a direct or indirect NVariantBoxType:
-
-            typeResult, exprResult = type_infer_and_annotate_expression(
-                expr.repeatedValue, NUnknownType(expr.repeatedValue.lineNr, expr.repeatedValue.rowNr),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-                funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
-                beSilentFlag
-            )
-            if typeResult == False:
-                return (False, None)
-
-            lenTypeResult, lenExprResult = type_infer_and_annotate_expression(
-                expr.length, NISizeType(expr.length.lineNr, expr.length.rowNr),
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-                funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
-                beSilentFlag
-            )
-            if lenTypeResult == False:
-                return (False, None)
-
-            inferredTypeFromTop = NDynamicArrayType(expr.lineNr, expr.rowNr, typeResult.create_copy())
-
-            matchResult = extended_match_as_below(
-                inferredTypeFromBelow,
-                inferredTypeFromTop,
-                typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict
-            )     
-
-            if matchResult == "several":
-        
-                if not beSilentFlag:
-                    util.log_error(expr.lineNr, expr.rowNr, "Several type cases can be selected with implicit variant-boxing. Please type specify.")
-                return (False, None)
-
-            elif matchResult == "vbox":
-
-                if not beSilentFlag:
-                    expr.inferredType = inferredTypeFromTop
-
-                vbox = NVariantBoxExpression(expr.lineNr, expr.rowNr, expr)
-
-                if not beSilentFlag:
-                    # annotate
-                    vbox.inferredType = inferredTypeFromBelow.create_copy()
-                    
-                return (inferredTypeFromBelow.create_copy(), vbox)    
-
-            elif matchResult:
-
-                if not beSilentFlag:
-                    expr.inferredType = inferredTypeFromTop
-
-                return (inferredTypeFromTop.create_copy, expr)
+            if not beSilentFlag:
+                util.log_error(expr.lineNr, expr.rowNr, "Type mismatch. Did not expect an array expression here")
+                print("Expected: ", end='')
+                inferredTypeFromBelow.print_it()
+                print("")  # newline
                 
-            else:
-                if not beSilentFlag:
-                    util.log_error(expr.lineNr, expr.rowNr, "Type mismatch.")
-                    print("Expected: ", end='')
-                    inferredTypeFromBelow.print_it()
-                    print("")  # newline
-                    print("Found: ", end='')
-                    inferredTypeFromTop.print_it()
-                    print("") # newline
-
-                return (False, None) 
+            return (False, None) 
   
 
     elif isinstance(expr, NStructExpression):
@@ -1651,7 +1370,7 @@ def extended_match_as_below(t, inferredMatchType, typeDict, directlyImportedType
     if isinstance(t, NUnknownType):
         return True
     else:
-        matchResult = match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 0)
+        matchResult = match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
         if matchResult:
             return matchResult
@@ -1661,7 +1380,7 @@ def extended_match_as_below(t, inferredMatchType, typeDict, directlyImportedType
                 theFound = False
 
                 for typ in t.types:
-                    matchRes = match_as_below(typ, inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 0)
+                    matchRes = match_as_below(typ, inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
                     if matchRes:
                         if theFound != False: # several possible matches -- does this really happen -- hardly since all extensions are distinct...
@@ -1675,6 +1394,15 @@ def extended_match_as_below(t, inferredMatchType, typeDict, directlyImportedType
                 return False
 
 
+
+
+# This version is simply extended with match against NUnknownType.
+def unknownextended_match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedMoudulesTypeDictDict):
+
+    if isinstance(t, NUnknownType):
+        return True
+    else:
+        return match_as_below(t, inferredMatchType, typeDict, directlyImportedTypesDictDict, otherImportedMoudulesTypeDictDict)
 
 
 def run_pass(
@@ -1691,7 +1419,8 @@ def run_pass(
         success = type_check_statement(
             statement, blockNumberList, 0,
             typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-            funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict
+            funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+            None
         )
         if success == False:
             return False
@@ -1700,10 +1429,18 @@ def run_pass(
 
 
 
+
+
+
+
+
+
+
 def type_check_statement(
     statement, blockNumberList, depth,
     typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-    funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict
+    funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+    currentReturnTypes
 ):
 
 
@@ -1730,7 +1467,8 @@ def type_check_statement(
             success = type_check_statement(
                 stmt, blockNumberList, depth + 1,
                 typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-                funDictStack + [funcEntry.localDict], builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict
+                funDictStack + [funcEntry.localDict], builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                funcEntry.signature.returnTypes
             )
             if success == False:
                 return False
@@ -1750,7 +1488,8 @@ def type_check_statement(
             success = type_check_statement(
                 stmt, blockNumberList, depth + 1,
                 typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-                funDictStack + [funDictStack[len(funDictStack) - 1][str(blockNumberList[depth])].localDict], builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict
+                funDictStack + [funDictStack[len(funDictStack) - 1][str(blockNumberList[depth])].localDict], builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                currentReturnTypes
             )
             if success == False:
                 return False
@@ -1773,7 +1512,8 @@ def type_check_statement(
         success = type_check_statement(
             statement.ifBlock, blockNumberList, depth,
             typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-            funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict
+            funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+            currentReturnTypes
         )
         if success == False:
             return False
@@ -1794,7 +1534,8 @@ def type_check_statement(
             success = type_check_statement(
                 elseIfClause.block, blockNumberList, depth,
                 typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-                funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict
+                funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                currentReturnTypes
             )
             if success == False:
                 return False
@@ -1804,7 +1545,8 @@ def type_check_statement(
             success = type_check_statement(
                 statement.elseBlockOrNull, blockNumberList, depth,
                 typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-                funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict
+                funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                currentReturnTypes
             )
             if success == False:
                 return False
@@ -1820,7 +1562,8 @@ def type_check_statement(
         success = type_check_statement(
             statement.block, blockNumberList, depth,
             typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-            funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict
+            funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+            currentReturnTypes
         )
         if success == False:
             return False
@@ -1830,6 +1573,8 @@ def type_check_statement(
     elif isinstance(statement, NForStatement):
 
         if not statement.rangeOrNull is None:
+            statement.rangeOrNull.counterType = concretize(statement.rangeOrNull.counterType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
+
             typeResult, exprResult = type_infer_and_annotate_expression(
                 statement.rangeOrNull.rangeFrom, statement.rangeOrNull.counterType, 
                 typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
@@ -1860,7 +1605,8 @@ def type_check_statement(
                 arrayType = NUnknownType(iteration.lineNr, iteration.rowNr)
 
                 if not iteration.itTypeOrNull is None:
-                    itType = iteration.itTypeOrNull
+                    itType = concretize(iteration.itTypeOrNull, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
+                    # (not sure concretization is needed here but cannot hurt...)
                     arrayType = NDynamicArrayType(iteration.lineNr, iteration.rowNr, itType.create_copy())                
 
                 typeResult, exprResult = type_infer_and_annotate_expression(
@@ -1876,7 +1622,13 @@ def type_check_statement(
 
                 # now set the name into block's type...                     
                 dictOfTheBodyBlock = funDictStack[len(funDictStack) - 1][statement.block.blockEntryNumStr].localDict
-                dictOfTheBodyBlock[iteration.itName.name].theType = iteration.arrayExpression.inferredType.valueType # hope this is good enough
+
+                concr = concretize(iteration.arrayExpression.inferredType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
+                if not isinstance(concr, NDynamicArrayType):
+                    util.log_error(concr.lineNr, concr.rowNr, "Weird type error. Should probably not happen")                    
+                    return False
+
+                dictOfTheBodyBlock[iteration.itName.name].theType = concr.valueType.create_copy()
 
             else: # NIterationOver hopefully...
 
@@ -1884,7 +1636,7 @@ def type_check_statement(
                 arrayType = NUnknownType(iteration.lineNr, iteration.rowNr)
 
                 if not iteration.itTypeOrNull is None:
-                    itType = iteration.itTypeOrNull
+                    itType = concretize(iteration.itTypeOrNull, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
                     arrayType = NDynamicArrayType(iteration.lineNr, iteration.rowNr, itType.create_copy())
 
                 typeResult, exprResult = type_infer_and_annotate_expression(
@@ -1900,7 +1652,13 @@ def type_check_statement(
 
                 # now set the name into block's type...                     
                 dictOfTheBodyBlock = funDictStack[len(funDictStack) - 1][statement.block.blockEntryNumStr].localDict
-                dictOfTheBodyBlock[iteration.itName.name].theType = iteration.arrayLValue.lValueExpression.inferredType.valueType # hope this is good enough 
+
+                concr = concretize(iteration.arrayLValue.lValueExpression.inferredType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
+                if not isinstance(concr, NDynamicArrayType):
+                    util.log_error(concr.lineNr, concr.rowNr, "Weird type error. Should probably not happen")                    
+                    return False
+
+                dictOfTheBodyBlock[iteration.itName.name].theType = concr.valueType.create_copy() 
 
             # the rest can in Python be done for both iteration classes at the same time:
 
@@ -1932,14 +1690,15 @@ def type_check_statement(
         success = type_check_statement(
             statement.block, blockNumberList, depth,
             typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-            funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict
+            funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+            currentReturnTypes
         )
         if success == False:
             return False
 
         return True
 
-    elif isinstance(statement, NSwitchStatement):
+    elif isinstance(statement, NSwitchStatement):  
 
         typeResult, exprResult = type_infer_and_annotate_expression(
             statement.switchValue, NUnknownType(statement.switchValue.lineNr, statement.switchValue.rowNr), 
@@ -1971,7 +1730,8 @@ def type_check_statement(
             success = type_check_statement(
                 case.block, blockNumberList, depth,
                 typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-                funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict
+                funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                currentReturnTypes
             )
             if success == False:
                 return False     
@@ -1980,7 +1740,8 @@ def type_check_statement(
             success = type_check_statement(
                 statement.defaultCaseOrNull, blockNumberList, depth,
                 typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
-                funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict
+                funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
+                currentReturnTypes
             )
             if success == False:
                 return False  
@@ -2003,6 +1764,8 @@ def type_check_statement(
 
             if isinstance(statement.leftHandSide[0], NVariableDeclaration):
 
+                statement.leftHandSide[0].theType = concretize(statement.leftHandSide[0].theType, typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
+
                 lhsType = statement.leftHandSide[0].theType.create_copy()
 
             else: # LValueContainer hopefully...
@@ -2018,7 +1781,8 @@ def type_check_statement(
                 else:
                     statement.leftHandSide[0].lValueExpression = exprResult
 
-                lhsType = typeResult.create_copy()
+                lhsType = concretize(typeResult.create_copy(), typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict) 
+                # can never hurt with possibly superfluous concretize...
 
 
             typeResult, exprResult = type_infer_and_annotate_expression(
@@ -2063,7 +1827,7 @@ def type_check_statement(
             else:
                 statement.leftHandSide[0].lValueExpression = exprResult
 
-            lhsType = typeResult.create_copy()
+            lhsType = concretize(typeResult.create_copy(), typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict)
 
 
             typeResult, exprResult = type_infer_and_annotate_expression(
@@ -2086,9 +1850,17 @@ def type_check_statement(
 
     elif isinstance(statement, NReturnStatement):
 
-        for returnExpression in statement.returnExpressions:
+        if currentReturnTypes is None:
+            util.log_error(statement.lineNr, statement.rowNr, "Type checking pass found usage of a return statement outside any function declaration.")
+            return False
+        
+        if len(currentReturnTypes) != len(statement.returnExpressions):
+            util.log_error(statement.lineNr, statement.rowNr, "Wrong number of return arguments to return statement.")
+            return False
+    
+        for i in range(0, len(currentReturnTypes)):
             typeResult, exprResult = type_infer_and_annotate_expression(
-                returnExpression, NUnknownType(statement.lineNr, statement.rowNr),    
+                statement.returnExpressions[i], currentReturnTypes[i],    
                 typeDict, directlyImportedTypesDictDict, otherImportedModulesTypeDictDict, 
                 funDictStack, builtInFunsDict, directlyImportedFunsDictDict, otherImportedModulesFunDictDict,
                 False
@@ -2109,5 +1881,14 @@ def type_check_statement(
     
     else:
         return True
+
+
+
+
+     
+
+
+
+
 
 
